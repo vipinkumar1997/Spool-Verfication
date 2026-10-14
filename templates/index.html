@@ -3,44 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚡ Spool Verification System</title>
+    <title>⚡ Spool Verification</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <style>
-        /* Zebra Scanner Support - Auto-focus and quick validation */
-        .input-field:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
-        }
-        
-        /* Highlight active field for scanner */
-        .input-field.scanner-active {
-            background: rgba(99, 102, 241, 0.2);
-            animation: pulseScanner 1s infinite;
-        }
-        
-        @keyframes pulseScanner {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
-            50% { box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); }
-        }
-        
-        /* Result flash animation */
-        @keyframes flashResult {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            25% { opacity: 0.8; transform: scale(1.02); }
-            50% { opacity: 1; transform: scale(1); }
-            75% { opacity: 0.8; transform: scale(1.02); }
-        }
-        
-        .result-display.success {
-            animation: flashResult 0.5s ease;
-        }
-        
-        .result-display.error {
-            animation: flashResult 0.5s ease;
-        }
-    </style>
 </head>
 <body>
     <div class="app-container">
@@ -50,9 +15,7 @@
                 <span class="logo-icon">⚡</span>
                 <h1>Spool Verification</h1>
             </div>
-            <div class="header-actions">
-                <button class="btn btn-secondary" onclick="clearAll()">Clear All</button>
-            </div>
+            <button class="btn btn-secondary" onclick="clearAll()">Clear</button>
         </header>
 
         <!-- Main Content -->
@@ -60,20 +23,18 @@
             <!-- Verification Card -->
             <div class="verification-card">
                 <div class="card-header">
-                    <h2>Verify Stickers</h2>
-                    <p class="subtitle">
-                        <strong>Workflow:</strong> Scan Surbhi → Auto-focus Manufacturing → Auto-verify
-                    </p>
+                    <h2>Verify</h2>
+                    <p class="subtitle">Surbhi → Manufacturing → Auto Verify</p>
                 </div>
 
                 <div class="input-grid">
-                    <!-- Step 1: Surbhi Sticker -->
+                    <!-- Step 1 -->
                     <div class="input-group">
                         <div class="input-header">
                             <span class="step-badge">1</span>
                             <div class="input-title">
-                                <h3>Surbhi Sticker</h3>
-                                <span class="format-hint">Format: VPN$lotcode$datecode$qty</span>
+                                <h3>Surbhi</h3>
+                                <span class="format-hint">VPN$lotcode$datecode$qty</span>
                             </div>
                         </div>
                         <div class="input-wrapper">
@@ -92,19 +53,15 @@
                     </div>
 
                     <!-- Arrow -->
-                    <div class="arrow">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M5 12h14M12 5l7 7-7 7"/>
-                        </svg>
-                    </div>
+                    <div class="arrow">→</div>
 
-                    <!-- Step 2: Manufacturing Sticker -->
+                    <!-- Step 2 -->
                     <div class="input-group">
                         <div class="input-header">
                             <span class="step-badge">2</span>
                             <div class="input-title">
-                                <h3>Manufacturing Sticker</h3>
-                                <span class="format-hint">Format: VPN only</span>
+                                <h3>Manufacturing</h3>
+                                <span class="format-hint">VPN only</span>
                             </div>
                         </div>
                         <div class="input-wrapper">
@@ -132,20 +89,20 @@
                     disabled
                 >
                     <span class="btn-icon">⚡</span>
-                    Verify Now
+                    Verify
                 </button>
 
-                <!-- Result Display -->
+                <!-- Result -->
                 <div id="result" class="result-display">
                     <div class="result-icon">👆</div>
-                    <p class="result-text">Scan Surbhi sticker first</p>
+                    <p class="result-text">Scan Surbhi first</p>
                 </div>
             </div>
 
-            <!-- Recent Scans Card -->
+            <!-- Recent Scans -->
             <div class="scans-card">
                 <div class="card-header">
-                    <h2>🔍 Recently Scanned</h2>
+                    <h2>🔍 Recent</h2>
                     <span class="badge">Last 5</span>
                 </div>
                 <div id="recentScans" class="scans-list">
@@ -157,7 +114,7 @@
                                 <span class="scan-time">{{ scan.timestamp }}</span>
                             </div>
                             <span class="scan-result {{ scan.result }}">
-                                {{ '✅ PASS' if scan.result == 'PASS' else '❌ FAIL' }}
+                                {{ '✅' if scan.result == 'PASS' else '❌' }}
                             </span>
                         </div>
                         {% endfor %}
@@ -178,38 +135,37 @@
                 <div class="stats">
                     <div class="stat-item">
                         <span class="stat-value" id="totalScans">0</span>
-                        <span class="stat-label">Total Scans</span>
+                        <span class="stat-label">Total</span>
                     </div>
                     <div class="stat-item">
                         <span class="stat-value" id="passCount">0</span>
-                        <span class="stat-label">Passed</span>
+                        <span class="stat-label">Pass</span>
                     </div>
                     <div class="stat-item">
                         <span class="stat-value" id="failCount">0</span>
-                        <span class="stat-label">Failed</span>
+                        <span class="stat-label">Fail</span>
                     </div>
                 </div>
             </div>
 
             <div class="sidebar-card">
-                <h3>🎯 Zebra Scanner Workflow</h3>
+                <h3>ℹ️ How to Use</h3>
                 <ol class="instructions">
-                    <li><strong>Scan Surbhi</strong> → Auto-tab to Manufacturing</li>
-                    <li><strong>Scan Manufacturing</strong> → Auto-verify</li>
-                    <li>Get instant <strong>PASS/FAIL</strong> result</li>
-                    <li>Fields auto-clear for next scan</li>
+                    <li>Scan Surbhi</li>
+                    <li>Scan Manufacturing</li>
+                    <li>Auto verify</li>
                 </ol>
             </div>
 
             <div class="sidebar-card format-card">
-                <h3>📋 Format Rules</h3>
+                <h3>📋 Format</h3>
                 <div class="format-rule">
                     <div class="rule-label">Surbhi:</div>
-                    <code class="rule-code">VPN$lotcode$datecode$qty</code>
+                    <code class="rule-code">VPN$lot$date$qty</code>
                 </div>
                 <div class="format-rule">
-                    <div class="rule-label">Manufacturing:</div>
-                    <code class="rule-code">VPN only</code>
+                    <div class="rule-label">Manu:</div>
+                    <code class="rule-code">VPN</code>
                 </div>
             </div>
         </aside>
