@@ -1,14 +1,35 @@
-# Dependencies
-node_modules/
-
-# Build output
-dist/
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
 build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# Environment files
+# Virtual environments
 .env
-.env.local
-.env.*.local
+.venv
+env/
+venv/
+ENV/
+
+# Flask
+instance/
+.webassets-cache
 
 # IDE
 .idea/
@@ -22,7 +43,3 @@ Thumbs.db
 
 # Logs
 *.log
-npm-debug.log*
-
-# Cache
-.cache/
