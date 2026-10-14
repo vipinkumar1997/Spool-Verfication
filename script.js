@@ -4,6 +4,52 @@
 
 const historyList = document.getElementById('historyList');
 const resultDiv = document.getElementById('result');
+const recentScansDiv = document.getElementById('recentScans');
+
+// Store recent successful scans
+let recentScans = [];
+
+// Load recent scans from localStorage
+function loadRecentScans() {
+    const savedScans = JSON.parse(localStorage.getItem('recentScans')) || [];
+    recentScans = savedScans.slice(-5); // Keep only last 5
+    updateRecentScansDisplay();
+}
+
+// Update the live display of recent scans
+function updateRecentScansDisplay() {
+    if (recentScans.length === 0) {
+        recentScansDiv.innerHTML = '<p class="no-scans">No spools scanned yet</p>';
+        return;
+    }
+    
+    recentScansDiv.innerHTML = recentScans.map((scan, index) => `
+        <div class="scan-item">
+            <span class="scan-number">#${recentScans.length - index}</span>
+            <span class="scan-vpn">${scan.vpn}</span>
+            <span class="scan-time">${new Date(scan.timestamp).toLocaleTimeString()}</span>
+        </div>
+    `).join('');
+}
+
+// Save recent scan
+function saveRecentScan(vpn) {
+    recentScans.unshift({
+        vpn: vpn,
+        timestamp: new Date().toISOString()
+    });
+    
+    // Keep only last 5
+    if (recentScans.length > 5) {
+        recentScans.pop();
+    }
+    
+    // Save to localStorage
+    localStorage.setItem('recentScans', JSON.stringify(recentScans));
+    
+    // Update display
+    updateRecentScansDisplay();
+}
 
 // Load history from localStorage
 function loadHistory() {
@@ -126,6 +172,7 @@ function verifyStickers() {
     if (isMatch) {
         showResult('success', `✅ SUCCESS! VPNs match: ${surbhiVPN}`);
         saveToHistory(surbhiData, manufacturingData, true);
+        saveRecentScan(surbhiVPN);
     } else {
         showResult('error', `❌ VPNs do not match!<br>Surbhi VPN: ${surbhiVPN}<br>Manufacturing VPN: ${manufacturingVPN}`);
         saveToHistory(surbhiData, manufacturingData, false, `VPN mismatch: ${surbhiVPN} vs ${manufacturingVPN}`);
@@ -154,4 +201,5 @@ document.getElementById('manufacturingSticker').addEventListener('keypress', han
 
 // Initialize
 loadHistory();
+loadRecentScans();
 showResult('waiting', 'Enter both sticker data and click verify');

@@ -146,11 +146,79 @@ h1 {
     border: 2px solid #ffc107;
 }
 
+.recent-scans {
+    background: #e3f2fd;
+    border-radius: 15px;
+    padding: 20px;
+    margin-top: 20px;
+    text-align: left;
+    border-left: 4px solid #2196f3;
+}
+
+.recent-scans h3 {
+    color: #1976d2;
+    margin-bottom: 15px;
+}
+
+.scans-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.scan-item {
+    background: white;
+    padding: 12px 15px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.scan-item:hover {
+    transform: translateX(5px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.scan-number {
+    background: #2196f3;
+    color: white;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.9em;
+}
+
+.scan-vpn {
+    flex: 1;
+    font-weight: 600;
+    color: #333;
+    font-family: monospace;
+}
+
+.scan-time {
+    color: #666;
+    font-size: 0.9em;
+}
+
+.no-scans {
+    color: #666;
+    font-style: italic;
+    text-align: center;
+    padding: 10px;
+}
+
 .history {
     background: #f8f9fa;
     border-radius: 15px;
     padding: 20px;
-    margin-top: 30px;
+    margin-top: 20px;
     text-align: left;
 }
 
