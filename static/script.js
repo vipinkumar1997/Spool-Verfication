@@ -1,4 +1,4 @@
-// Spool Verification System - Ultra Fast
+// Spool Verification System - Ultra Fast with Zebra Scanner Support
 // Surbhi Sticker Format: VPN$lotcode$datecode$qty
 // Manufacturing Sticker Format: VPN only
 
@@ -15,6 +15,9 @@ const historyList = document.getElementById('historyList');
 let totalScans = 0;
 let passCount = 0;
 let failCount = 0;
+
+// Track which field is being scanned
+let currentField = 'surbhi';
 
 // Validate Surbhi Sticker format
 function validateSurbhiFormat(data) {
@@ -53,7 +56,7 @@ function validateManufacturingFormat(data) {
     return { valid: true, vpn: data.trim() };
 }
 
-// Handle Surbhi input
+// Handle Surbhi input with auto-tab on valid format
 function handleSurbhiInput() {
     const data = surbhiInput.value.trim();
     const validation = validateSurbhiFormat(data);
@@ -61,8 +64,15 @@ function handleSurbhiInput() {
     if (validation.valid) {
         surbhiStatus.textContent = '✓';
         surbhiStatus.className = 'input-status valid';
-        manufacturingInput.disabled = false;
-        manufacturingInput.focus();
+        
+        // Auto-move to manufacturing field when valid
+        setTimeout(() => {
+            if (currentField === 'surbhi' && validateSurbhiFormat(surbhiInput.value.trim()).valid) {
+                manufacturingInput.disabled = false;
+                manufacturingInput.focus();
+                currentField = 'manufacturing';
+            }
+        }, 100);
     } else {
         surbhiStatus.textContent = '✗';
         surbhiStatus.className = 'input-status invalid';
@@ -71,7 +81,7 @@ function handleSurbhiInput() {
     updateVerifyButton();
 }
 
-// Handle Manufacturing input
+// Handle Manufacturing input with auto-verify on valid format
 function handleManufacturingInput() {
     const data = manufacturingInput.value.trim();
     const validation = validateManufacturingFormat(data);
@@ -79,6 +89,16 @@ function handleManufacturingInput() {
     if (validation.valid) {
         manufacturingStatus.textContent = '✓';
         manufacturingStatus.className = 'input-status valid';
+        
+        // Auto-verify when both fields are valid
+        const surbhiValid = validateSurbhiFormat(surbhiInput.value.trim()).valid;
+        if (surbhiValid && !verifyBtn.disabled) {
+            setTimeout(() => {
+                if (currentField === 'manufacturing' && validateManufacturingFormat(manufacturingInput.value.trim()).valid) {
+                    verifyStickers();
+                }
+            }, 100);
+        }
     } else {
         manufacturingStatus.textContent = '✗';
         manufacturingStatus.className = 'input-status invalid';
@@ -86,23 +106,62 @@ function handleManufacturingInput() {
     updateVerifyButton();
 }
 
+// Handle key down - Zebra scanner support
+function handleKeyDown(e, field) {
+    // Zebra scanner sends Tab (keyCode 9) or Enter (keyCode 13) after scan
+    if (e.key === 'Tab' || e.key === 'Enter') {
+        e.preventDefault();
+        
+        if (field === 'surbhi') {
+            const validation = validateSurbhiFormat(surbhiInput.value.trim());
+            if (validation.valid) {
+                manufacturingInput.disabled = false;
+                manufacturingInput.focus();
+                currentField = 'manufacturing';
+            }
+        } else if (field === 'manufacturing') {
+            const validation = validateManufacturingFormat(manufacturingInput.value.trim());
+            if (validation.valid && validateSurbhiFormat(surbhiInput.value.trim()).valid) {
+                verifyStickers();
+            }
+        }
+    }
+}
+
+// Handle input event for Zebra scanner (auto-tab on data entry)
+function handleInput(e, field) {
+    // Check if this is likely a scanner input (long string entered quickly)
+    const value = e.target.value;
+    
+    if (field === 'surbhi' && value.length > 0) {
+        const validation = validateSurbhiFormat(value.trim());
+        if (validation.valid) {
+            // Small delay to ensure full data is entered
+            setTimeout(() => {
+                if (validateSurbhiFormat(surbhiInput.value.trim()).valid) {
+                    manufacturingInput.disabled = false;
+                    manufacturingInput.focus();
+                    currentField = 'manufacturing';
+                }
+            }, 100);
+        }
+    } else if (field === 'manufacturing' && value.length > 0) {
+        const validation = validateManufacturingFormat(value.trim());
+        if (validation.valid && validateSurbhiFormat(surbhiInput.value.trim()).valid) {
+            setTimeout(() => {
+                if (validateManufacturingFormat(manufacturingInput.value.trim()).valid) {
+                    verifyStickers();
+                }
+            }, 100);
+        }
+    }
+}
+
 // Update verify button state
 function updateVerifyButton() {
     const surbhiValid = validateSurbhiFormat(surbhiInput.value.trim()).valid;
     const manufacturingValid = manufacturingInput.value.trim() !== '';
     verifyBtn.disabled = !(surbhiValid && manufacturingValid);
-}
-
-// Handle key down
-function handleKeyDown(e, field) {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        if (field === 'surbhi' && validateSurbhiFormat(surbhiInput.value.trim()).valid) {
-            manufacturingInput.focus();
-        } else if (field === 'manufacturing' && !verifyBtn.disabled) {
-            verifyStickers();
-        }
-    }
 }
 
 // Ultra fast verification
@@ -145,7 +204,7 @@ async function verifyStickers() {
     } catch (error) {
         showResult('error', '❌ Error: ' + error.message);
     } finally {
-        // Clear inputs for next scan
+        // Clear inputs for next scan and reset focus
         setTimeout(() => {
             surbhiInput.value = '';
             manufacturingInput.value = '';
@@ -155,6 +214,7 @@ async function verifyStickers() {
             manufacturingInput.disabled = true;
             verifyBtn.disabled = false;
             verifyBtn.innerHTML = '<span class="btn-icon">⚡</span> Verify Now';
+            currentField = 'surbhi';
         }, 1000);
     }
 }
@@ -255,6 +315,7 @@ function clearAll() {
         manufacturingInput.disabled = true;
         verifyBtn.disabled = false;
         verifyBtn.innerHTML = '<span class="btn-icon">⚡</span> Verify Now';
+        currentField = 'surbhi';
         
         recentScansDiv.innerHTML = `
             <div class="empty-state">
@@ -267,7 +328,15 @@ function clearAll() {
     }
 }
 
+// Add event listeners with Zebra scanner support
+surbhiInput.addEventListener('keydown', (e) => handleKeyDown(e, 'surbhi'));
+surbhiInput.addEventListener('input', (e) => { handleSurbhiInput(); handleInput(e, 'surbhi'); });
+manufacturingInput.addEventListener('keydown', (e) => handleKeyDown(e, 'manufacturing'));
+manufacturingInput.addEventListener('input', (e) => { handleManufacturingInput(); handleInput(e, 'manufacturing'); });
+
 // Initialize
 loadRecentScans();
 loadHistory();
-showResult('waiting', 'Scan both stickers to verify');
+showResult('waiting', 'Scan Surbhi sticker first');
+currentField = 'surbhi';
+surbhiInput.focus();
