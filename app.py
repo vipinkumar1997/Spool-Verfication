@@ -1,13 +1,17 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session
 from datetime import datetime
+import os
 
 app = Flask(__name__)
+app.secret_key = os.environ.get('SECRET_KEY', 'spool-verification-secret-key-2024')
 
-# In-memory storage for recent scans (last 5)
-recent_scans = []
 
-# In-memory storage for history
-history = []
+def init_storage():
+    """Initialize storage in session if not exists"""
+    if 'recent_scans' not in session:
+        session['recent_scans'] = []
+    if 'history' not in session:
+        session['history'] = []
 
 
 def validate_surbhi_format(data):
@@ -40,15 +44,24 @@ def validate_manufacturing_format(data):
     return {'valid': True, 'vpn': data.strip()}
 
 
+@app.before_request
+def before_request():
+    """Initialize session storage before each request"""
+    init_storage()
+
+
 @app.route('/')
 def index():
     """Main verification page"""
-    return render_template('index.html', recent_scans=recent_scans)
+    init_storage()
+    return render_template('index.html', recent_scans=session.get('recent_scans', [])[:5])
 
 
 @app.route('/api/verify', methods=['POST'])
 def verify():
     """Verify VPNs from both stickers - Always returns JSON"""
+    init_storage()
+    
     try:
         data = request.get_json()
         
@@ -71,7 +84,8 @@ def verify():
                 'message': f'Invalid Surbhi Sticker: {surbhi_validation["error"]}',
                 'result': 'FAIL'
             }
-            history.append({
+            session['history'] = session.get('history', [])[:50]
+            session['history'].insert(0, {
                 'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 'surbhi': surbhi_data,
                 'manufacturing': manufacturing_data,
@@ -79,6 +93,7 @@ def verify():
                 'error': surbhi_validation['error'],
                 'result': 'FAIL'
             })
+            session.modified = True
             return jsonify(result), 400
         
         # Validate Manufacturing
@@ -89,7 +104,8 @@ def verify():
                 'message': f'Invalid Manufacturing Sticker: {manufacturing_validation["error"]}',
                 'result': 'FAIL'
             }
-            history.append({
+            session['history'] = session.get('history', [])[:50]
+            session['history'].insert(0, {
                 'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 'surbhi': surbhi_data,
                 'manufacturing': manufacturing_data,
@@ -97,6 +113,7 @@ def verify():
                 'error': manufacturing_validation['error'],
                 'result': 'FAIL'
             })
+            session.modified = True
             return jsonify(result), 400
         
         # Compare VPNs
@@ -108,15 +125,17 @@ def verify():
         result_type = 'PASS' if is_match else 'FAIL'
         
         # Save to recent scans (last 5)
-        recent_scans.insert(0, {
+        session['recent_scans'] = session.get('recent_scans', [])[:5]
+        session['recent_scans'].insert(0, {
             'vpn': surbhi_vpn,
             'result': result_type,
             'timestamp': datetime.now().strftime('%H:%M:%S')
         })
-        recent_scans = recent_scans[:5]
+        session.modified = True
         
         # Save to history
-        history.append({
+        session['history'] = session.get('history', [])[:50]
+        session['history'].insert(0, {
             'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'surbhi': surbhi_data,
             'manufacturing': manufacturing_data,
@@ -124,18 +143,17 @@ def verify():
             'success': is_match,
             'result': result_type
         })
-        history = history[:50]
+        session.modified = True
         
         return jsonify({
             'success': is_match,
             'message': result_message,
             'result': result_type,
             'vpn': surbhi_vpn,
-            'recent_scans': recent_scans
+            'recent_scans': session.get('recent_scans', [])[:5]
         })
     
     except Exception as e:
-        # Always return JSON even on error
         return jsonify({
             'success': False,
             'message': f'Server error: {str(e)}',
@@ -147,8 +165,9 @@ def verify():
 @app.route('/api/recent-scans')
 def get_recent_scans():
     """Get last 5 recent scans - Always returns JSON"""
+    init_storage()
     try:
-        return jsonify(recent_scans)
+        return jsonify(session.get('recent_scans', [])[:5])
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -156,8 +175,9 @@ def get_recent_scans():
 @app.route('/api/history')
 def get_history():
     """Get verification history - Always returns JSON"""
+    init_storage()
     try:
-        return jsonify(history)
+        return jsonify(session.get('history', [])[:50])
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
