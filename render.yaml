@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: spool-verification
+    runtime: static
+    build_command: |
+      # No build needed for static HTML/CSS/JS
+      echo "Static site - no build required"
+    static_publish_path: .
+    env_vars:
+      - key: NODE_ENV
+        value: production
+    auto_deploy: true

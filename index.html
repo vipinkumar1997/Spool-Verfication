@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spool Sticker Verification System</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🏷️ Spool Sticker Verification</h1>
+        <p class="subtitle">Verify if the VPNs from both stickers match</p>
+        
+        <div class="sticker-section">
+            <div class="sticker">
+                <h2>🏷️ Surbhi Sticker</h2>
+                <p class="format-hint">Format: VPN$lotcode$datecode$qty</p>
+                <div class="qr-input-group">
+                    <label for="surbhiSticker">Enter Surbhi Sticker Data:</label>
+                    <input type="text" id="surbhiSticker" placeholder="e.g., VPN123$LOT456$20241014$100">
+                </div>
+            </div>
+            
+            <div class="sticker">
+                <h2>🏭 Manufacturing Sticker</h2>
+                <p class="format-hint">Format: VPN only</p>
+                <div class="qr-input-group">
+                    <label for="manufacturingSticker">Enter Manufacturing Sticker Data:</label>
+                    <input type="text" id="manufacturingSticker" placeholder="e.g., VPN123">
+                </div>
+            </div>
+        </div>
+        
+        <button onclick="verifyStickers()" class="verify-btn" id="verifyBtn">✅ Verify Stickers</button>
+        
+        <div class="result" id="result">
+            <p>Enter both sticker data and click verify</p>
+        </div>
+        
+        <div class="history" id="history">
+            <h3>📜 Verification History</h3>
+            <ul id="historyList"></ul>
+        </div>
+        
+        <div class="format-info">
+            <h3>⚠️ Format Rules</h3>
+            <ul>
+                <li><strong>Surbhi Sticker:</strong> Must be in format: <code>VPN$lotcode$datecode$qty</code></li>
+                <li><strong>Manufacturing Sticker:</strong> Must contain <strong>only VPN number</strong></li>
+                <li>Only these formats are allowed, no other formats accepted</li>
+                <li>VPN from both stickers must match exactly</li>
+            </ul>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
