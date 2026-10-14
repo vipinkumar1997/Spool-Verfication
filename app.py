@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify, session
 from datetime import datetime
 import os
+import re
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'spool-verification-secret-key-2024')
@@ -19,6 +20,9 @@ def validate_surbhi_format(data):
     if not data or not isinstance(data, str):
         return {'valid': False, 'error': 'Surbhi sticker data is empty'}
     
+    # Remove any extra whitespace
+    data = data.strip()
+    
     parts = data.split('$')
     if len(parts) != 4:
         return {'valid': False, 'error': 'Surbhi sticker must have format: VPN$lotcode$datecode$qty'}
@@ -27,7 +31,10 @@ def validate_surbhi_format(data):
         if not part or part.strip() == '':
             return {'valid': False, 'error': f'Part {i+1} is empty in Surbhi sticker'}
     
-    return {'valid': True, 'vpn': parts[0]}
+    # Extract VPN (first part)
+    vpn = parts[0].strip()
+    
+    return {'valid': True, 'vpn': vpn, 'parts': parts}
 
 
 def validate_manufacturing_format(data):
@@ -35,13 +42,15 @@ def validate_manufacturing_format(data):
     if not data or not isinstance(data, str):
         return {'valid': False, 'error': 'Manufacturing sticker data is empty'}
     
+    data = data.strip()
+    
     if '$' in data:
         return {'valid': False, 'error': 'Manufacturing sticker must contain only VPN (no $ allowed)'}
     
-    if data.strip() == '':
+    if data == '':
         return {'valid': False, 'error': 'Manufacturing sticker VPN is empty'}
     
-    return {'valid': True, 'vpn': data.strip()}
+    return {'valid': True, 'vpn': data}
 
 
 @app.before_request
@@ -84,6 +93,7 @@ def verify():
                 'message': f'Invalid Surbhi Sticker: {surbhi_validation["error"]}',
                 'result': 'FAIL'
             }
+            # Save to history
             session['history'] = session.get('history', [])[:50]
             session['history'].insert(0, {
                 'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
@@ -104,6 +114,7 @@ def verify():
                 'message': f'Invalid Manufacturing Sticker: {manufacturing_validation["error"]}',
                 'result': 'FAIL'
             }
+            # Save to history
             session['history'] = session.get('history', [])[:50]
             session['history'].insert(0, {
                 'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
@@ -124,7 +135,7 @@ def verify():
         result_message = 'PASS: VPNs match!' if is_match else f'FAIL: VPN mismatch! Surbhi: {surbhi_vpn}, Manufacturing: {manufacturing_vpn}'
         result_type = 'PASS' if is_match else 'FAIL'
         
-        # Save to recent scans (last 5)
+        # Save to recent scans (last 5) - only save the VPN, not the full data
         session['recent_scans'] = session.get('recent_scans', [])[:5]
         session['recent_scans'].insert(0, {
             'vpn': surbhi_vpn,
@@ -133,12 +144,10 @@ def verify():
         })
         session.modified = True
         
-        # Save to history
+        # Save to history - store only VPN, not full data
         session['history'] = session.get('history', [])[:50]
         session['history'].insert(0, {
             'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'surbhi': surbhi_data,
-            'manufacturing': manufacturing_data,
             'vpn': surbhi_vpn,
             'success': is_match,
             'result': result_type

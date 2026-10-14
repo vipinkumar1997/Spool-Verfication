@@ -42,6 +42,7 @@ function validateSurbhiFormat(data) {
         return { valid: false, error: 'Empty' };
     }
     
+    data = data.trim();
     const parts = data.split('$');
     if (parts.length !== 4) {
         return { valid: false, error: 'Invalid format' };
@@ -53,7 +54,7 @@ function validateSurbhiFormat(data) {
         }
     }
     
-    return { valid: true, vpn: parts[0] };
+    return { valid: true, vpn: parts[0].trim() };
 }
 
 // Validate Manufacturing Sticker format
@@ -62,15 +63,17 @@ function validateManufacturingFormat(data) {
         return { valid: false, error: 'Empty' };
     }
     
+    data = data.trim();
+    
     if (data.includes('$')) {
         return { valid: false, error: 'Invalid format' };
     }
     
-    if (data.trim() === '') {
+    if (data === '') {
         return { valid: false, error: 'Empty' };
     }
     
-    return { valid: true, vpn: data.trim() };
+    return { valid: true, vpn: data };
 }
 
 // Safe API call with error handling and timeout
@@ -105,10 +108,6 @@ async function safeApiCall(url, options = {}, timeout = 3000) {
         return { success: false, message: 'Network error', error: 'network_error' };
     }
 }
-
-// Debounced input handlers for scanner
-const debouncedHandleSurbhiInput = debounce(handleSurbhiInput, 100);
-const debouncedHandleManufacturingInput = debounce(handleManufacturingInput, 100);
 
 // Handle Surbhi input
 function handleSurbhiInput() {
@@ -158,7 +157,7 @@ function handleManufacturingInput() {
     updateVerifyButton();
 }
 
-// Handle key down - Zebra scanner support
+// Handle key down
 function handleKeyDown(e, field) {
     if (e.key === 'Tab' || e.key === 'Enter') {
         e.preventDefault();
@@ -196,7 +195,6 @@ async function verifyStickers() {
     verifyBtn.innerHTML = '<span class="btn-icon">⏳</span> Checking...';
     
     try {
-        // Use timeout of 5 seconds for verification
         const result = await safeApiCall('/api/verify', {
             method: 'POST',
             body: JSON.stringify({
@@ -235,7 +233,7 @@ async function verifyStickers() {
             verifyBtn.disabled = false;
             verifyBtn.innerHTML = '<span class="btn-icon">⚡</span> Verify';
             currentField = 'surbhi';
-        }, 500); // Reduced from 1000ms to 500ms
+        }, 500);
     }
 }
 
@@ -348,9 +346,9 @@ function clearAll() {
 
 // Add event listeners with debouncing
 surbhiInput.addEventListener('keydown', (e) => handleKeyDown(e, 'surbhi'));
-surbhiInput.addEventListener('input', debouncedHandleSurbhiInput);
+surbhiInput.addEventListener('input', debounce(handleSurbhiInput, 100));
 manufacturingInput.addEventListener('keydown', (e) => handleKeyDown(e, 'manufacturing'));
-manufacturingInput.addEventListener('input', debouncedHandleManufacturingInput);
+manufacturingInput.addEventListener('input', debounce(handleManufacturingInput, 100));
 
 // Initialize
 loadRecentScans();
