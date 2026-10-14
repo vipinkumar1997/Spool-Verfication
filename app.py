@@ -1,5 +1,4 @@
 from flask import Flask, render_template, request, jsonify
-import re
 from datetime import datetime
 
 app = Flask(__name__)
@@ -64,7 +63,7 @@ def verify():
             'result': 'FAIL'
         }
         history.append({
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'surbhi': surbhi_data,
             'manufacturing': manufacturing_data,
             'success': False,
@@ -82,7 +81,7 @@ def verify():
             'result': 'FAIL'
         }
         history.append({
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'surbhi': surbhi_data,
             'manufacturing': manufacturing_data,
             'success': False,
@@ -103,13 +102,13 @@ def verify():
     recent_scans.insert(0, {
         'vpn': surbhi_vpn,
         'result': result_type,
-        'timestamp': datetime.now().isoformat()
+        'timestamp': datetime.now().strftime('%H:%M:%S')
     })
     recent_scans = recent_scans[:5]  # Keep only last 5
     
     # Save to history
     history.append({
-        'timestamp': datetime.now().isoformat(),
+        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         'surbhi': surbhi_data,
         'manufacturing': manufacturing_data,
         'vpn': surbhi_vpn,

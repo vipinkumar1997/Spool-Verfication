@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>⚡ Spool Verification - Python Flask</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <div class="container">
@@ -48,7 +48,18 @@
         <div class="recent-scans">
             <h3>🔍 Last 5 Scanned Spools (Live)</h3>
             <div class="scans-container" id="recentScans">
+                {% if recent_scans %}
+                    {% for scan in recent_scans %}
+                    <div class="scan-item">
+                        <span class="scan-number">#{{ loop.index }}</span>
+                        <span class="scan-vpn">{{ scan.vpn }}</span>
+                        <span class="scan-result {{ scan.result }}">{{ '✅' if scan.result == 'PASS' else '❌' }}</span>
+                        <span class="scan-time">{{ scan.timestamp }}</span>
+                    </div>
+                    {% endfor %}
+                {% else %}
                 <p class="no-scans">No spools scanned yet</p>
+                {% endif %}
             </div>
         </div>
         
@@ -68,6 +79,6 @@
         </div>
     </div>
     
-    <script src="/static/script.js"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
