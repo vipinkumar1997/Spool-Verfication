@@ -1,122 +1,108 @@
-// Spool Sticker Verification System - Ultra Fast Python Flask
+// Spool Verification System - Ultra Fast
 // Surbhi Sticker Format: VPN$lotcode$datecode$qty
 // Manufacturing Sticker Format: VPN only
 
-const historyList = document.getElementById('historyList');
-const resultDiv = document.getElementById('result');
-const recentScansDiv = document.getElementById('recentScans');
 const surbhiInput = document.getElementById('surbhiSticker');
 const manufacturingInput = document.getElementById('manufacturingSticker');
 const verifyBtn = document.getElementById('verifyBtn');
 const surbhiStatus = document.getElementById('surbhiStatus');
 const manufacturingStatus = document.getElementById('manufacturingStatus');
+const resultDiv = document.getElementById('result');
+const recentScansDiv = document.getElementById('recentScans');
+const historyList = document.getElementById('historyList');
 
-// Load recent scans from server
-async function loadRecentScans() {
-    try {
-        const response = await fetch('/api/recent-scans');
-        const scans = await response.json();
-        updateRecentScansDisplay(scans);
-    } catch (error) {
-        console.error('Error loading recent scans:', error);
-    }
-}
+// Stats
+let totalScans = 0;
+let passCount = 0;
+let failCount = 0;
 
-// Load history from server
-async function loadHistory() {
-    try {
-        const response = await fetch('/api/history');
-        const history = await response.json();
-        historyList.innerHTML = history.map(item => 
-            `<li class="${item.success ? 'success' : 'error'}">
-                ${new Date(item.timestamp).toLocaleString()} - 
-                ${item.success ? '✅ PASS' : '❌ FAIL'} - 
-                VPN: ${item.vpn || 'N/A'}
-            </li>`
-        ).join('');
-    } catch (error) {
-        console.error('Error loading history:', error);
-    }
-}
-
-// Update the live display of recent scans
-function updateRecentScansDisplay(scans) {
-    if (!scans || scans.length === 0) {
-        recentScansDiv.innerHTML = '<p class="no-scans">No spools scanned yet</p>';
-        return;
+// Validate Surbhi Sticker format
+function validateSurbhiFormat(data) {
+    if (!data || typeof data !== 'string') {
+        return { valid: false, error: 'Empty' };
     }
     
-    recentScansDiv.innerHTML = scans.map((scan, index) => `
-        <div class="scan-item">
-            <span class="scan-number">#${scans.length - index}</span>
-            <span class="scan-vpn">${scan.vpn}</span>
-            <span class="scan-result ${scan.result}">${scan.result === 'PASS' ? '✅' : '❌'}</span>
-            <span class="scan-time">${new Date(scan.timestamp).toLocaleTimeString()}</span>
-        </div>
-    `).join('');
-}
-
-// Validate Surbhi input in real-time
-async function validateSurbhi() {
-    const data = surbhiInput.value.trim();
+    const parts = data.split('$');
+    if (parts.length !== 4) {
+        return { valid: false, error: 'Invalid format' };
+    }
     
-    try {
-        const response = await fetch('/api/validate-surbhi', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({data: data})
-        });
-        const validation = await response.json();
-        
-        if (validation.valid) {
-            surbhiStatus.textContent = '✅ Valid';
-            surbhiStatus.className = 'status valid';
-            manufacturingInput.disabled = false;
-            manufacturingInput.focus();
-        } else {
-            surbhiStatus.textContent = '❌ ' + validation.error;
-            surbhiStatus.className = 'status invalid';
-            manufacturingInput.disabled = true;
-            verifyBtn.disabled = true;
+    for (let i = 0; i < parts.length; i++) {
+        if (!parts[i] || parts[i].trim() === '') {
+            return { valid: false, error: 'Empty part' };
         }
-    } catch (error) {
-        console.error('Validation error:', error);
     }
     
+    return { valid: true, vpn: parts[0] };
+}
+
+// Validate Manufacturing Sticker format
+function validateManufacturingFormat(data) {
+    if (!data || typeof data !== 'string') {
+        return { valid: false, error: 'Empty' };
+    }
+    
+    if (data.includes('$')) {
+        return { valid: false, error: 'Invalid format' };
+    }
+    
+    if (data.trim() === '') {
+        return { valid: false, error: 'Empty' };
+    }
+    
+    return { valid: true, vpn: data.trim() };
+}
+
+// Handle Surbhi input
+function handleSurbhiInput() {
+    const data = surbhiInput.value.trim();
+    const validation = validateSurbhiFormat(data);
+    
+    if (validation.valid) {
+        surbhiStatus.textContent = '✓';
+        surbhiStatus.className = 'input-status valid';
+        manufacturingInput.disabled = false;
+        manufacturingInput.focus();
+    } else {
+        surbhiStatus.textContent = '✗';
+        surbhiStatus.className = 'input-status invalid';
+        manufacturingInput.disabled = true;
+    }
     updateVerifyButton();
 }
 
-// Validate Manufacturing input in real-time
-async function validateManufacturing() {
+// Handle Manufacturing input
+function handleManufacturingInput() {
     const data = manufacturingInput.value.trim();
+    const validation = validateManufacturingFormat(data);
     
-    try {
-        const response = await fetch('/api/validate-manufacturing', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({data: data})
-        });
-        const validation = await response.json();
-        
-        if (validation.valid) {
-            manufacturingStatus.textContent = '✅ Valid';
-            manufacturingStatus.className = 'status valid';
-        } else {
-            manufacturingStatus.textContent = '❌ ' + validation.error;
-            manufacturingStatus.className = 'status invalid';
-        }
-    } catch (error) {
-        console.error('Validation error:', error);
+    if (validation.valid) {
+        manufacturingStatus.textContent = '✓';
+        manufacturingStatus.className = 'input-status valid';
+    } else {
+        manufacturingStatus.textContent = '✗';
+        manufacturingStatus.className = 'input-status invalid';
     }
-    
     updateVerifyButton();
 }
 
 // Update verify button state
 function updateVerifyButton() {
-    const surbhiValid = surbhiInput.value.trim() !== '';
+    const surbhiValid = validateSurbhiFormat(surbhiInput.value.trim()).valid;
     const manufacturingValid = manufacturingInput.value.trim() !== '';
     verifyBtn.disabled = !(surbhiValid && manufacturingValid);
+}
+
+// Handle key down
+function handleKeyDown(e, field) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        if (field === 'surbhi' && validateSurbhiFormat(surbhiInput.value.trim()).valid) {
+            manufacturingInput.focus();
+        } else if (field === 'manufacturing' && !verifyBtn.disabled) {
+            verifyStickers();
+        }
+    }
 }
 
 // Ultra fast verification
@@ -124,8 +110,9 @@ async function verifyStickers() {
     const surbhiData = surbhiInput.value.trim();
     const manufacturingData = manufacturingInput.value.trim();
     
+    // Disable button during verification
     verifyBtn.disabled = true;
-    verifyBtn.textContent = '⏳ Verifying...';
+    verifyBtn.innerHTML = '<span class="btn-icon">⏳</span> Verifying...';
     
     try {
         const response = await fetch('/api/verify', {
@@ -139,13 +126,19 @@ async function verifyStickers() {
         
         const result = await response.json();
         
+        // Update stats
+        totalScans++;
         if (result.success) {
-            showResult('success', '✅ PASS: VPNs match!');
+            passCount++;
+            showResult('success', '✅ PASS - VPNs match!');
         } else {
-            showResult('error', result.message);
+            failCount++;
+            showResult('error', result.message || '❌ FAIL - VPN mismatch');
         }
         
-        // Load updated data
+        updateStats();
+        
+        // Load updated recent scans
         await loadRecentScans();
         await loadHistory();
         
@@ -161,40 +154,120 @@ async function verifyStickers() {
             manufacturingStatus.textContent = '';
             manufacturingInput.disabled = true;
             verifyBtn.disabled = false;
-            verifyBtn.textContent = '⚡ Verify';
+            verifyBtn.innerHTML = '<span class="btn-icon">⚡</span> Verify Now';
         }, 1000);
     }
 }
 
 // Show result
 function showResult(type, message) {
-    resultDiv.className = `result ${type}`;
-    resultDiv.innerHTML = message;
+    const resultIcon = resultDiv.querySelector('.result-icon');
+    const resultText = resultDiv.querySelector('.result-text');
+    
+    resultDiv.className = `result-display ${type}`;
+    resultText.textContent = message;
+    
+    if (type === 'success') {
+        resultIcon.textContent = '✅';
+    } else if (type === 'error') {
+        resultIcon.textContent = '❌';
+    } else {
+        resultIcon.textContent = '👆';
+    }
+    
     resultDiv.scrollIntoView({ behavior: 'smooth' });
 }
 
-// Handle Enter key
-function handleKeyPress(e) {
-    if (e.key === 'Enter') {
-        if (!surbhiInput.disabled && surbhiInput === document.activeElement) {
-            validateSurbhi();
-            if (surbhiInput.value.trim() !== '') {
-                manufacturingInput.focus();
-            }
-        } else if (!manufacturingInput.disabled && manufacturingInput === document.activeElement) {
-            validateManufacturing();
-            if (manufacturingInput.value.trim() !== '') {
-                verifyStickers();
-            }
+// Load recent scans
+async function loadRecentScans() {
+    try {
+        const response = await fetch('/api/recent-scans');
+        const scans = await response.json();
+        
+        if (scans && scans.length > 0) {
+            recentScansDiv.innerHTML = scans.map((scan, index) => `
+                <div class="scan-item">
+                    <div class="scan-info">
+                        <span class="scan-vpn">${scan.vpn}</span>
+                        <span class="scan-time">${scan.timestamp}</span>
+                    </div>
+                    <span class="scan-result ${scan.result}">
+                        ${scan.result === 'PASS' ? '✅ PASS' : '❌ FAIL'}
+                    </span>
+                </div>
+            `).join('');
+        } else {
+            recentScansDiv.innerHTML = `
+                <div class="empty-state">
+                    <span class="empty-icon">📭</span>
+                    <p>No scans yet</p>
+                </div>
+            `;
         }
+    } catch (error) {
+        console.error('Error loading recent scans:', error);
     }
 }
 
-// Add event listeners
-surbhiInput.addEventListener('keypress', handleKeyPress);
-manufacturingInput.addEventListener('keypress', handleKeyPress);
+// Load history
+async function loadHistory() {
+    try {
+        const response = await fetch('/api/history');
+        const history = await response.json();
+        
+        if (history && history.length > 0) {
+            historyList.innerHTML = history.map(item => `
+                <li class="scan-item">
+                    <div class="scan-info">
+                        <span class="scan-vpn">${item.vpn || 'N/A'}</span>
+                        <span class="scan-time">${item.timestamp}</span>
+                    </div>
+                    <span class="scan-result ${item.result}">
+                        ${item.result === 'PASS' ? '✅ PASS' : '❌ FAIL'}
+                    </span>
+                </li>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('Error loading history:', error);
+    }
+}
+
+// Update stats display
+function updateStats() {
+    document.getElementById('totalScans').textContent = totalScans;
+    document.getElementById('passCount').textContent = passCount;
+    document.getElementById('failCount').textContent = failCount;
+}
+
+// Clear all data
+function clearAll() {
+    if (confirm('Are you sure you want to clear all data?')) {
+        totalScans = 0;
+        passCount = 0;
+        failCount = 0;
+        updateStats();
+        
+        surbhiInput.value = '';
+        manufacturingInput.value = '';
+        surbhiStatus.textContent = '';
+        manufacturingStatus.textContent = '';
+        manufacturingInput.disabled = true;
+        verifyBtn.disabled = false;
+        verifyBtn.innerHTML = '<span class="btn-icon">⚡</span> Verify Now';
+        
+        recentScansDiv.innerHTML = `
+            <div class="empty-state">
+                <span class="empty-icon">📭</span>
+                <p>No scans yet</p>
+            </div>
+        `;
+        
+        showResult('waiting', 'Scan both stickers to verify');
+    }
+}
 
 // Initialize
 loadRecentScans();
 loadHistory();
-showResult('waiting', 'Scan Surbhi sticker first');
+showResult('waiting', 'Scan both stickers to verify');

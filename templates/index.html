@@ -3,82 +3,179 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚡ Spool Verification - Python Flask</title>
+    <title>⚡ Spool Verification System</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
-        <h1>⚡ Spool Sticker Verification</h1>
-        <p class="subtitle">Ultra Fast VPN Matching System - Python Flask</p>
-        
-        <div class="workflow-section">
-            <div class="step">
-                <span class="step-number">1</span>
-                <div class="sticker">
-                    <h2>🏷️ Surbhi Sticker</h2>
-                    <p class="format-hint">Format: VPN$lotcode$datecode$qty</p>
-                    <div class="qr-input-group">
-                        <label for="surbhiSticker">Scan Surbhi Sticker:</label>
-                        <input type="text" id="surbhiSticker" placeholder="e.g., VPN123$LOT456$20241014$100" autocomplete="off" oninput="validateSurbhi()">
-                        <span id="surbhiStatus" class="status"></span>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <span class="logo-icon">⚡</span>
+                <h1>Spool Verification</h1>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-secondary" onclick="clearAll()">Clear All</button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Verification Card -->
+            <div class="verification-card">
+                <div class="card-header">
+                    <h2>Verify Stickers</h2>
+                    <p class="subtitle">Scan Surbhi & Manufacturing stickers to verify VPN match</p>
+                </div>
+
+                <div class="input-grid">
+                    <!-- Step 1: Surbhi Sticker -->
+                    <div class="input-group">
+                        <div class="input-header">
+                            <span class="step-badge">1</span>
+                            <div class="input-title">
+                                <h3>Surbhi Sticker</h3>
+                                <span class="format-hint">Format: VPN$lotcode$datecode$qty</span>
+                            </div>
+                        </div>
+                        <div class="input-wrapper">
+                            <input 
+                                type="text" 
+                                id="surbhiSticker" 
+                                class="input-field" 
+                                placeholder="VPN123$LOT456$20241014$100"
+                                autocomplete="off"
+                                oninput="handleSurbhiInput()"
+                                onkeydown="handleKeyDown(event, 'surbhi')"
+                            >
+                            <span id="surbhiStatus" class="input-status"></span>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="arrow">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M5 12h14M12 5l7 7-7 7"/>
+                        </svg>
+                    </div>
+
+                    <!-- Step 2: Manufacturing Sticker -->
+                    <div class="input-group">
+                        <div class="input-header">
+                            <span class="step-badge">2</span>
+                            <div class="input-title">
+                                <h3>Manufacturing Sticker</h3>
+                                <span class="format-hint">Format: VPN only</span>
+                            </div>
+                        </div>
+                        <div class="input-wrapper">
+                            <input 
+                                type="text" 
+                                id="manufacturingSticker" 
+                                class="input-field" 
+                                placeholder="VPN123"
+                                autocomplete="off"
+                                disabled
+                                oninput="handleManufacturingInput()"
+                                onkeydown="handleKeyDown(event, 'manufacturing')"
+                            >
+                            <span id="manufacturingStatus" class="input-status"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Verify Button -->
+                <button 
+                    id="verifyBtn" 
+                    class="btn btn-primary btn-verify" 
+                    onclick="verifyStickers()"
+                    disabled
+                >
+                    <span class="btn-icon">⚡</span>
+                    Verify Now
+                </button>
+
+                <!-- Result Display -->
+                <div id="result" class="result-display">
+                    <div class="result-icon">👆</div>
+                    <p class="result-text">Enter both sticker data</p>
+                </div>
+            </div>
+
+            <!-- Recent Scans Card -->
+            <div class="scans-card">
+                <div class="card-header">
+                    <h2>🔍 Recently Scanned</h2>
+                    <span class="badge">Last 5</span>
+                </div>
+                <div id="recentScans" class="scans-list">
+                    {% if recent_scans %}
+                        {% for scan in recent_scans %}
+                        <div class="scan-item">
+                            <div class="scan-info">
+                                <span class="scan-vpn">{{ scan.vpn }}</span>
+                                <span class="scan-time">{{ scan.timestamp }}</span>
+                            </div>
+                            <span class="scan-result {{ scan.result }}">
+                                {{ '✅ PASS' if scan.result == 'PASS' else '❌ FAIL' }}
+                            </span>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                    <div class="empty-state">
+                        <span class="empty-icon">📭</span>
+                        <p>No scans yet</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </main>
+
+        <!-- History Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-card">
+                <h3>📊 Stats</h3>
+                <div class="stats">
+                    <div class="stat-item">
+                        <span class="stat-value" id="totalScans">0</span>
+                        <span class="stat-label">Total Scans</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="passCount">0</span>
+                        <span class="stat-label">Passed</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="failCount">0</span>
+                        <span class="stat-label">Failed</span>
                     </div>
                 </div>
             </div>
-            
-            <div class="step">
-                <span class="step-number">2</span>
-                <div class="sticker">
-                    <h2>🏭 Manufacturing Sticker</h2>
-                    <p class="format-hint">Format: VPN only</p>
-                    <div class="qr-input-group">
-                        <label for="manufacturingSticker">Scan Manufacturing Sticker:</label>
-                        <input type="text" id="manufacturingSticker" placeholder="e.g., VPN123" autocomplete="off" disabled oninput="validateManufacturing()">
-                        <span id="manufacturingStatus" class="status"></span>
-                    </div>
+
+            <div class="sidebar-card">
+                <h3>⚙️ How to Use</h3>
+                <ol class="instructions">
+                    <li>Scan <strong>Surbhi sticker</strong> (format: VPN$...)</li>
+                    <li>Scan <strong>Manufacturing sticker</strong> (VPN only)</li>
+                    <li>Click <strong>Verify</strong> or press Enter</li>
+                    <li>Get instant <strong>PASS/FAIL</strong> result</li>
+                </ol>
+            </div>
+
+            <div class="sidebar-card format-card">
+                <h3>📋 Format Rules</h3>
+                <div class="format-rule">
+                    <div class="rule-label">Surbhi:</div>
+                    <code class="rule-code">VPN$lotcode$datecode$qty</code>
+                </div>
+                <div class="format-rule">
+                    <div class="rule-label">Manufacturing:</div>
+                    <code class="rule-code">VPN only</code>
                 </div>
             </div>
-        </div>
-        
-        <button onclick="verifyStickers()" class="verify-btn" id="verifyBtn" disabled>⚡ Verify</button>
-        
-        <div class="result" id="result">
-            <p>Scan both stickers to verify</p>
-        </div>
-        
-        <div class="recent-scans">
-            <h3>🔍 Last 5 Scanned Spools (Live)</h3>
-            <div class="scans-container" id="recentScans">
-                {% if recent_scans %}
-                    {% for scan in recent_scans %}
-                    <div class="scan-item">
-                        <span class="scan-number">#{{ loop.index }}</span>
-                        <span class="scan-vpn">{{ scan.vpn }}</span>
-                        <span class="scan-result {{ scan.result }}">{{ '✅' if scan.result == 'PASS' else '❌' }}</span>
-                        <span class="scan-time">{{ scan.timestamp }}</span>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                <p class="no-scans">No spools scanned yet</p>
-                {% endif %}
-            </div>
-        </div>
-        
-        <div class="history">
-            <h3>📜 Verification History</h3>
-            <ul id="historyList"></ul>
-        </div>
-        
-        <div class="format-info">
-            <h3>⚠️ Format Rules</h3>
-            <ul>
-                <li><strong>Surbhi Sticker:</strong> Must be in format: <code>VPN$lotcode$datecode$qty</code></li>
-                <li><strong>Manufacturing Sticker:</strong> Must contain <strong>only VPN number</strong></li>
-                <li><strong>Workflow:</strong> Surbhi → Manufacturing → Verify</li>
-                <li><strong>Result:</strong> ✅ PASS (match) or ❌ FAIL (no match)</li>
-            </ul>
-        </div>
+        </aside>
     </div>
-    
+
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
