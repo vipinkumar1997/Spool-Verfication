@@ -15,9 +15,13 @@ const historyList = document.getElementById('historyList');
 let totalScans = 0;
 let passCount = 0;
 let failCount = 0;
-
-// Track which field is being scanned
 let currentField = 'surbhi';
+
+// Always use POST with JSON headers
+const apiHeaders = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+};
 
 // Validate Surbhi Sticker format
 function validateSurbhiFormat(data) {
@@ -56,7 +60,41 @@ function validateManufacturingFormat(data) {
     return { valid: true, vpn: data.trim() };
 }
 
-// Handle Surbhi input with auto-tab on valid format
+// Safe API call with error handling
+async function safeApiCall(url, options = {}) {
+    try {
+        const response = await fetch(url, {
+            ...options,
+            headers: { ...apiHeaders, ...options.headers }
+        });
+        
+        const contentType = response.headers.get('content-type');
+        
+        // Only parse as JSON if content type is JSON
+        if (contentType && contentType.includes('application/json')) {
+            return await response.json();
+        } else {
+            // If not JSON, return error
+            const text = await response.text();
+            console.error('Non-JSON response:', text);
+            return { 
+                success: false, 
+                message: 'Server returned non-JSON response',
+                error: 'invalid_response',
+                raw: text.substring(0, 200) 
+            };
+        }
+    } catch (error) {
+        console.error('API call error:', error);
+        return { 
+            success: false, 
+            message: 'Network error: ' + error.message,
+            error: 'network_error'
+        };
+    }
+}
+
+// Handle Surbhi input
 function handleSurbhiInput() {
     const data = surbhiInput.value.trim();
     const validation = validateSurbhiFormat(data);
@@ -65,7 +103,6 @@ function handleSurbhiInput() {
         surbhiStatus.textContent = '✓';
         surbhiStatus.className = 'input-status valid';
         
-        // Auto-move to manufacturing field when valid
         setTimeout(() => {
             if (currentField === 'surbhi' && validateSurbhiFormat(surbhiInput.value.trim()).valid) {
                 manufacturingInput.disabled = false;
@@ -81,7 +118,7 @@ function handleSurbhiInput() {
     updateVerifyButton();
 }
 
-// Handle Manufacturing input with auto-verify on valid format
+// Handle Manufacturing input
 function handleManufacturingInput() {
     const data = manufacturingInput.value.trim();
     const validation = validateManufacturingFormat(data);
@@ -90,7 +127,6 @@ function handleManufacturingInput() {
         manufacturingStatus.textContent = '✓';
         manufacturingStatus.className = 'input-status valid';
         
-        // Auto-verify when both fields are valid
         const surbhiValid = validateSurbhiFormat(surbhiInput.value.trim()).valid;
         if (surbhiValid && !verifyBtn.disabled) {
             setTimeout(() => {
@@ -106,9 +142,8 @@ function handleManufacturingInput() {
     updateVerifyButton();
 }
 
-// Handle key down - Zebra scanner support
+// Handle key down
 function handleKeyDown(e, field) {
-    // Zebra scanner sends Tab (keyCode 9) or Enter (keyCode 13) after scan
     if (e.key === 'Tab' || e.key === 'Enter') {
         e.preventDefault();
         
@@ -128,15 +163,13 @@ function handleKeyDown(e, field) {
     }
 }
 
-// Handle input event for Zebra scanner (auto-tab on data entry)
+// Handle input event
 function handleInput(e, field) {
-    // Check if this is likely a scanner input (long string entered quickly)
     const value = e.target.value;
     
     if (field === 'surbhi' && value.length > 0) {
         const validation = validateSurbhiFormat(value.trim());
         if (validation.valid) {
-            // Small delay to ensure full data is entered
             setTimeout(() => {
                 if (validateSurbhiFormat(surbhiInput.value.trim()).valid) {
                     manufacturingInput.disabled = false;
@@ -164,26 +197,22 @@ function updateVerifyButton() {
     verifyBtn.disabled = !(surbhiValid && manufacturingValid);
 }
 
-// Ultra fast verification
+// Verify stickers with error handling
 async function verifyStickers() {
     const surbhiData = surbhiInput.value.trim();
     const manufacturingData = manufacturingInput.value.trim();
     
-    // Disable button during verification
     verifyBtn.disabled = true;
     verifyBtn.innerHTML = '<span class="btn-icon">⏳</span> Verifying...';
     
     try {
-        const response = await fetch('/api/verify', {
+        const result = await safeApiCall('/api/verify', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 surbhi: surbhiData,
                 manufacturing: manufacturingData
             })
         });
-        
-        const result = await response.json();
         
         // Update stats
         totalScans++;
@@ -196,15 +225,12 @@ async function verifyStickers() {
         }
         
         updateStats();
-        
-        // Load updated recent scans
         await loadRecentScans();
         await loadHistory();
         
     } catch (error) {
-        showResult('error', '❌ Error: ' + error.message);
+        showResult('error', '❌ Network Error');
     } finally {
-        // Clear inputs for next scan and reset focus
         setTimeout(() => {
             surbhiInput.value = '';
             manufacturingInput.value = '';
@@ -213,7 +239,7 @@ async function verifyStickers() {
             manufacturingStatus.textContent = '';
             manufacturingInput.disabled = true;
             verifyBtn.disabled = false;
-            verifyBtn.innerHTML = '<span class="btn-icon">⚡</span> Verify Now';
+            verifyBtn.innerHTML = '<span class="btn-icon">⚡</span> Verify';
             currentField = 'surbhi';
         }, 1000);
     }
@@ -241,15 +267,14 @@ function showResult(type, message) {
 // Load recent scans
 async function loadRecentScans() {
     try {
-        const response = await fetch('/api/recent-scans');
-        const scans = await response.json();
+        const scans = await safeApiCall('/api/recent-scans');
         
         if (scans && scans.length > 0) {
             recentScansDiv.innerHTML = scans.map((scan, index) => `
                 <div class="scan-item">
                     <div class="scan-info">
-                        <span class="scan-vpn">${scan.vpn}</span>
-                        <span class="scan-time">${scan.timestamp}</span>
+                        <span class="scan-vpn">${scan.vpn || 'N/A'}</span>
+                        <span class="scan-time">${scan.timestamp || ''}</span>
                     </div>
                     <span class="scan-result ${scan.result}">
                         ${scan.result === 'PASS' ? '✅ PASS' : '❌ FAIL'}
@@ -272,15 +297,14 @@ async function loadRecentScans() {
 // Load history
 async function loadHistory() {
     try {
-        const response = await fetch('/api/history');
-        const history = await response.json();
+        const history = await safeApiCall('/api/history');
         
         if (history && history.length > 0) {
             historyList.innerHTML = history.map(item => `
                 <li class="scan-item">
                     <div class="scan-info">
                         <span class="scan-vpn">${item.vpn || 'N/A'}</span>
-                        <span class="scan-time">${item.timestamp}</span>
+                        <span class="scan-time">${item.timestamp || ''}</span>
                     </div>
                     <span class="scan-result ${item.result}">
                         ${item.result === 'PASS' ? '✅ PASS' : '❌ FAIL'}
@@ -302,7 +326,7 @@ function updateStats() {
 
 // Clear all data
 function clearAll() {
-    if (confirm('Are you sure you want to clear all data?')) {
+    if (confirm('Clear all data?')) {
         totalScans = 0;
         passCount = 0;
         failCount = 0;
@@ -314,7 +338,7 @@ function clearAll() {
         manufacturingStatus.textContent = '';
         manufacturingInput.disabled = true;
         verifyBtn.disabled = false;
-        verifyBtn.innerHTML = '<span class="btn-icon">⚡</span> Verify Now';
+        verifyBtn.innerHTML = '<span class="btn-icon">⚡</span> Verify';
         currentField = 'surbhi';
         
         recentScansDiv.innerHTML = `
@@ -324,11 +348,11 @@ function clearAll() {
             </div>
         `;
         
-        showResult('waiting', 'Scan both stickers to verify');
+        showResult('waiting', 'Scan Surbhi first');
     }
 }
 
-// Add event listeners with Zebra scanner support
+// Add event listeners
 surbhiInput.addEventListener('keydown', (e) => handleKeyDown(e, 'surbhi'));
 surbhiInput.addEventListener('input', (e) => { handleSurbhiInput(); handleInput(e, 'surbhi'); });
 manufacturingInput.addEventListener('keydown', (e) => handleKeyDown(e, 'manufacturing'));
@@ -337,6 +361,6 @@ manufacturingInput.addEventListener('input', (e) => { handleManufacturingInput()
 // Initialize
 loadRecentScans();
 loadHistory();
-showResult('waiting', 'Scan Surbhi sticker first');
+showResult('waiting', 'Scan Surbhi first');
 currentField = 'surbhi';
 surbhiInput.focus();
