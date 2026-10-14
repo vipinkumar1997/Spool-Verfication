@@ -23,6 +23,19 @@ const apiHeaders = {
     'Accept': 'application/json'
 };
 
+// Debounce function to prevent rapid multiple scans
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
 // Validate Surbhi Sticker format
 function validateSurbhiFormat(data) {
     if (!data || typeof data !== 'string') {
@@ -60,39 +73,42 @@ function validateManufacturingFormat(data) {
     return { valid: true, vpn: data.trim() };
 }
 
-// Safe API call with error handling
-async function safeApiCall(url, options = {}) {
+// Safe API call with error handling and timeout
+async function safeApiCall(url, options = {}, timeout = 3000) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    
     try {
         const response = await fetch(url, {
             ...options,
-            headers: { ...apiHeaders, ...options.headers }
+            headers: { ...apiHeaders, ...options.headers },
+            signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
         
         const contentType = response.headers.get('content-type');
         
-        // Only parse as JSON if content type is JSON
         if (contentType && contentType.includes('application/json')) {
             return await response.json();
         } else {
-            // If not JSON, return error
             const text = await response.text();
-            console.error('Non-JSON response:', text);
-            return { 
-                success: false, 
-                message: 'Server returned non-JSON response',
-                error: 'invalid_response',
-                raw: text.substring(0, 200) 
-            };
+            console.error('Non-JSON response:', text.substring(0, 200));
+            return { success: false, message: 'Server error', error: 'invalid_response' };
         }
     } catch (error) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+            return { success: false, message: 'Request timeout', error: 'timeout' };
+        }
         console.error('API call error:', error);
-        return { 
-            success: false, 
-            message: 'Network error: ' + error.message,
-            error: 'network_error'
-        };
+        return { success: false, message: 'Network error', error: 'network_error' };
     }
 }
+
+// Debounced input handlers for scanner
+const debouncedHandleSurbhiInput = debounce(handleSurbhiInput, 100);
+const debouncedHandleManufacturingInput = debounce(handleManufacturingInput, 100);
 
 // Handle Surbhi input
 function handleSurbhiInput() {
@@ -109,7 +125,7 @@ function handleSurbhiInput() {
                 manufacturingInput.focus();
                 currentField = 'manufacturing';
             }
-        }, 100);
+        }, 50);
     } else {
         surbhiStatus.textContent = '✗';
         surbhiStatus.className = 'input-status invalid';
@@ -133,7 +149,7 @@ function handleManufacturingInput() {
                 if (currentField === 'manufacturing' && validateManufacturingFormat(manufacturingInput.value.trim()).valid) {
                     verifyStickers();
                 }
-            }, 100);
+            }, 50);
         }
     } else {
         manufacturingStatus.textContent = '✗';
@@ -142,7 +158,7 @@ function handleManufacturingInput() {
     updateVerifyButton();
 }
 
-// Handle key down
+// Handle key down - Zebra scanner support
 function handleKeyDown(e, field) {
     if (e.key === 'Tab' || e.key === 'Enter') {
         e.preventDefault();
@@ -163,33 +179,6 @@ function handleKeyDown(e, field) {
     }
 }
 
-// Handle input event
-function handleInput(e, field) {
-    const value = e.target.value;
-    
-    if (field === 'surbhi' && value.length > 0) {
-        const validation = validateSurbhiFormat(value.trim());
-        if (validation.valid) {
-            setTimeout(() => {
-                if (validateSurbhiFormat(surbhiInput.value.trim()).valid) {
-                    manufacturingInput.disabled = false;
-                    manufacturingInput.focus();
-                    currentField = 'manufacturing';
-                }
-            }, 100);
-        }
-    } else if (field === 'manufacturing' && value.length > 0) {
-        const validation = validateManufacturingFormat(value.trim());
-        if (validation.valid && validateSurbhiFormat(surbhiInput.value.trim()).valid) {
-            setTimeout(() => {
-                if (validateManufacturingFormat(manufacturingInput.value.trim()).valid) {
-                    verifyStickers();
-                }
-            }, 100);
-        }
-    }
-}
-
 // Update verify button state
 function updateVerifyButton() {
     const surbhiValid = validateSurbhiFormat(surbhiInput.value.trim()).valid;
@@ -197,40 +186,45 @@ function updateVerifyButton() {
     verifyBtn.disabled = !(surbhiValid && manufacturingValid);
 }
 
-// Verify stickers with error handling
+// Verify stickers - Optimized for speed
 async function verifyStickers() {
     const surbhiData = surbhiInput.value.trim();
     const manufacturingData = manufacturingInput.value.trim();
     
+    // Disable button and show loading state
     verifyBtn.disabled = true;
-    verifyBtn.innerHTML = '<span class="btn-icon">⏳</span> Verifying...';
+    verifyBtn.innerHTML = '<span class="btn-icon">⏳</span> Checking...';
     
     try {
+        // Use timeout of 5 seconds for verification
         const result = await safeApiCall('/api/verify', {
             method: 'POST',
             body: JSON.stringify({
                 surbhi: surbhiData,
                 manufacturing: manufacturingData
             })
-        });
+        }, 5000);
         
         // Update stats
         totalScans++;
         if (result.success) {
             passCount++;
-            showResult('success', '✅ PASS - VPNs match!');
+            showResult('success', '✅ PASS');
         } else {
             failCount++;
-            showResult('error', result.message || '❌ FAIL - VPN mismatch');
+            showResult('error', result.message || '❌ FAIL');
         }
         
         updateStats();
-        await loadRecentScans();
-        await loadHistory();
+        
+        // Load updated data in background (don't wait)
+        loadRecentScans();
+        loadHistory();
         
     } catch (error) {
-        showResult('error', '❌ Network Error');
+        showResult('error', '❌ Error');
     } finally {
+        // Clear inputs quickly for next scan
         setTimeout(() => {
             surbhiInput.value = '';
             manufacturingInput.value = '';
@@ -241,7 +235,7 @@ async function verifyStickers() {
             verifyBtn.disabled = false;
             verifyBtn.innerHTML = '<span class="btn-icon">⚡</span> Verify';
             currentField = 'surbhi';
-        }, 1000);
+        }, 500); // Reduced from 1000ms to 500ms
     }
 }
 
@@ -267,7 +261,7 @@ function showResult(type, message) {
 // Load recent scans
 async function loadRecentScans() {
     try {
-        const scans = await safeApiCall('/api/recent-scans');
+        const scans = await safeApiCall('/api/recent-scans', {}, 2000);
         
         if (scans && scans.length > 0) {
             recentScansDiv.innerHTML = scans.map((scan, index) => `
@@ -297,7 +291,7 @@ async function loadRecentScans() {
 // Load history
 async function loadHistory() {
     try {
-        const history = await safeApiCall('/api/history');
+        const history = await safeApiCall('/api/history', {}, 2000);
         
         if (history && history.length > 0) {
             historyList.innerHTML = history.map(item => `
@@ -352,11 +346,11 @@ function clearAll() {
     }
 }
 
-// Add event listeners
+// Add event listeners with debouncing
 surbhiInput.addEventListener('keydown', (e) => handleKeyDown(e, 'surbhi'));
-surbhiInput.addEventListener('input', (e) => { handleSurbhiInput(); handleInput(e, 'surbhi'); });
+surbhiInput.addEventListener('input', debouncedHandleSurbhiInput);
 manufacturingInput.addEventListener('keydown', (e) => handleKeyDown(e, 'manufacturing'));
-manufacturingInput.addEventListener('input', (e) => { handleManufacturingInput(); handleInput(e, 'manufacturing'); });
+manufacturingInput.addEventListener('input', debouncedHandleManufacturingInput);
 
 // Initialize
 loadRecentScans();
