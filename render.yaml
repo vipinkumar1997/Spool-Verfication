@@ -3,8 +3,8 @@ services:
     name: spool-verification
     runtime: static
     build_command: |
-      # No build needed for static HTML/CSS/JS
-      echo "Static site - no build required"
+      # Static site - no build required
+      echo "Ultra Fast Spool Verification System"
     static_publish_path: .
     env_vars:
       - key: NODE_ENV

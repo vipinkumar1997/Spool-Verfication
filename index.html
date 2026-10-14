@@ -8,33 +8,41 @@
 </head>
 <body>
     <div class="container">
-        <h1>🏷️ Spool Sticker Verification</h1>
-        <p class="subtitle">Verify if the VPNs from both stickers match</p>
+        <h1>⚡ Spool Sticker Verification</h1>
+        <p class="subtitle">Ultra Fast VPN Matching System</p>
         
-        <div class="sticker-section">
-            <div class="sticker">
-                <h2>🏷️ Surbhi Sticker</h2>
-                <p class="format-hint">Format: VPN$lotcode$datecode$qty</p>
-                <div class="qr-input-group">
-                    <label for="surbhiSticker">Enter Surbhi Sticker Data:</label>
-                    <input type="text" id="surbhiSticker" placeholder="e.g., VPN123$LOT456$20241014$100">
+        <div class="workflow-section">
+            <div class="step">
+                <span class="step-number">1</span>
+                <div class="sticker">
+                    <h2>🏷️ Surbhi Sticker</h2>
+                    <p class="format-hint">Format: VPN$lotcode$datecode$qty</p>
+                    <div class="qr-input-group">
+                        <label for="surbhiSticker">Scan Surbhi Sticker:</label>
+                        <input type="text" id="surbhiSticker" placeholder="e.g., VPN123$LOT456$20241014$100" autocomplete="off" oninput="validateSurbhi()">
+                        <span id="surbhiStatus" class="status"></span>
+                    </div>
                 </div>
             </div>
             
-            <div class="sticker">
-                <h2>🏭 Manufacturing Sticker</h2>
-                <p class="format-hint">Format: VPN only</p>
-                <div class="qr-input-group">
-                    <label for="manufacturingSticker">Enter Manufacturing Sticker Data:</label>
-                    <input type="text" id="manufacturingSticker" placeholder="e.g., VPN123">
+            <div class="step">
+                <span class="step-number">2</span>
+                <div class="sticker">
+                    <h2>🏭 Manufacturing Sticker</h2>
+                    <p class="format-hint">Format: VPN only</p>
+                    <div class="qr-input-group">
+                        <label for="manufacturingSticker">Scan Manufacturing Sticker:</label>
+                        <input type="text" id="manufacturingSticker" placeholder="e.g., VPN123" autocomplete="off" disabled oninput="validateManufacturing()">
+                        <span id="manufacturingStatus" class="status"></span>
+                    </div>
                 </div>
             </div>
         </div>
         
-        <button onclick="verifyStickers()" class="verify-btn" id="verifyBtn">✅ Verify Stickers</button>
+        <button onclick="verifyStickers()" class="verify-btn" id="verifyBtn" disabled>⚡ Verify</button>
         
         <div class="result" id="result">
-            <p>Enter both sticker data and click verify</p>
+            <p>Scan both stickers to verify</p>
         </div>
         
         <div class="recent-scans">
@@ -54,8 +62,8 @@
             <ul>
                 <li><strong>Surbhi Sticker:</strong> Must be in format: <code>VPN$lotcode$datecode$qty</code></li>
                 <li><strong>Manufacturing Sticker:</strong> Must contain <strong>only VPN number</strong></li>
-                <li>Only these formats are allowed, no other formats accepted</li>
-                <li>VPN from both stickers must match exactly</li>
+                <li><strong>Workflow:</strong> Surbhi → Manufacturing → Verify</li>
+                <li><strong>Result:</strong> ✅ PASS (match) or ❌ FAIL (no match)</li>
             </ul>
         </div>
     </div>

@@ -36,12 +36,33 @@ h1 {
     font-size: 1.1em;
 }
 
-.sticker-section {
+.workflow-section {
     display: flex;
     gap: 30px;
     margin-bottom: 30px;
     flex-wrap: wrap;
     justify-content: center;
+}
+
+.step {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+}
+
+.step-number {
+    background: #667eea;
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.2em;
+    flex-shrink: 0;
 }
 
 .sticker {
@@ -68,7 +89,7 @@ h1 {
 .qr-input-group {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
 }
 
 .qr-input-group label {
@@ -82,12 +103,34 @@ h1 {
     border: 2px solid #ddd;
     border-radius: 10px;
     font-size: 1em;
-    transition: border-color 0.3s;
+    transition: border-color 0.3s, box-shadow 0.2s;
 }
 
 .qr-input-group input:focus {
     outline: none;
     border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.qr-input-group input:disabled {
+    background: #f0f0f0;
+    cursor: not-allowed;
+}
+
+.status {
+    font-size: 0.9em;
+    text-align: left;
+    padding: 5px 0;
+}
+
+.status.valid {
+    color: #28a745;
+    font-weight: 600;
+}
+
+.status.invalid {
+    color: #dc3545;
+    font-weight: 600;
 }
 
 .verify-btn {
@@ -105,7 +148,7 @@ h1 {
     margin: 0 auto;
 }
 
-.verify-btn:hover {
+.verify-btn:hover:not(:disabled) {
     transform: translateY(-3px);
     box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
 }
@@ -120,30 +163,46 @@ h1 {
     margin: 30px 0;
     padding: 20px;
     border-radius: 15px;
-    font-size: 1.2em;
-    font-weight: 600;
+    font-size: 1.3em;
+    font-weight: 700;
     min-height: 80px;
     display: flex;
     align-items: center;
     justify-content: center;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 .result.success {
     background: #d4edda;
     color: #155724;
-    border: 2px solid #28a745;
+    border: 3px solid #28a745;
+    animation: pulseSuccess 0.5s;
 }
 
 .result.error {
     background: #f8d7da;
     color: #721c24;
-    border: 2px solid #dc3545;
+    border: 3px solid #dc3545;
+    animation: pulseError 0.5s;
 }
 
 .result.waiting {
     background: #fff3cd;
     color: #856404;
-    border: 2px solid #ffc107;
+    border: 3px solid #ffc107;
+}
+
+@keyframes pulseSuccess {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+
+@keyframes pulseError {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
 }
 
 .recent-scans {
@@ -200,6 +259,18 @@ h1 {
     font-weight: 600;
     color: #333;
     font-family: monospace;
+}
+
+.scan-result {
+    font-size: 1.2em;
+}
+
+.scan-result.PASS {
+    color: #28a745;
+}
+
+.scan-result.FAIL {
+    color: #dc3545;
 }
 
 .scan-time {
@@ -284,14 +355,18 @@ h1 {
 }
 
 @media (max-width: 768px) {
-    .sticker-section {
+    .workflow-section {
         flex-direction: column;
         align-items: center;
     }
     
-    .sticker {
+    .step {
         width: 100%;
         max-width: 400px;
+    }
+    
+    .sticker {
+        width: 100%;
     }
     
     .container {

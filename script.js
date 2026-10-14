@@ -1,10 +1,16 @@
-// Spool Sticker Verification System
+// Spool Sticker Verification System - Ultra Fast
 // Surbhi Sticker Format: VPN$lotcode$datecode$qty
 // Manufacturing Sticker Format: VPN only
+// Workflow: Surbhi -> Manufacturing -> Verify
 
 const historyList = document.getElementById('historyList');
 const resultDiv = document.getElementById('result');
 const recentScansDiv = document.getElementById('recentScans');
+const surbhiInput = document.getElementById('surbhiSticker');
+const manufacturingInput = document.getElementById('manufacturingSticker');
+const verifyBtn = document.getElementById('verifyBtn');
+const surbhiStatus = document.getElementById('surbhiStatus');
+const manufacturingStatus = document.getElementById('manufacturingStatus');
 
 // Store recent successful scans
 let recentScans = [];
@@ -12,7 +18,7 @@ let recentScans = [];
 // Load recent scans from localStorage
 function loadRecentScans() {
     const savedScans = JSON.parse(localStorage.getItem('recentScans')) || [];
-    recentScans = savedScans.slice(-5); // Keep only last 5
+    recentScans = savedScans.slice(-5);
     updateRecentScansDisplay();
 }
 
@@ -27,27 +33,25 @@ function updateRecentScansDisplay() {
         <div class="scan-item">
             <span class="scan-number">#${recentScans.length - index}</span>
             <span class="scan-vpn">${scan.vpn}</span>
+            <span class="scan-result ${scan.result}">${scan.result === 'PASS' ? '✅' : '❌'}</span>
             <span class="scan-time">${new Date(scan.timestamp).toLocaleTimeString()}</span>
         </div>
     `).join('');
 }
 
 // Save recent scan
-function saveRecentScan(vpn) {
+function saveRecentScan(vpn, result) {
     recentScans.unshift({
         vpn: vpn,
+        result: result,
         timestamp: new Date().toISOString()
     });
     
-    // Keep only last 5
     if (recentScans.length > 5) {
         recentScans.pop();
     }
     
-    // Save to localStorage
     localStorage.setItem('recentScans', JSON.stringify(recentScans));
-    
-    // Update display
     updateRecentScansDisplay();
 }
 
@@ -57,23 +61,21 @@ function loadHistory() {
     historyList.innerHTML = history.map(item => 
         `<li class="${item.success ? 'success' : 'error'}">
             ${new Date(item.timestamp).toLocaleString()} - 
-            ${item.success ? '✅ Match' : '❌ ' + (item.error || 'No Match')} - 
-            Surbhi: ${item.surbhi || 'empty'}, Manufacturing: ${item.manufacturing || 'empty'}
+            ${item.success ? '✅ PASS' : '❌ FAIL'} - 
+            VPN: ${item.vpn || 'N/A'}
         </li>`
     ).join('');
 }
 
 // Save to history
-function saveToHistory(surbhiData, manufacturingData, success, error = '') {
+function saveToHistory(vpn, success, error = '') {
     const history = JSON.parse(localStorage.getItem('stickerVerificationHistory')) || [];
     history.unshift({
-        surbhi: surbhiData,
-        manufacturing: manufacturingData,
-        success,
-        error,
+        vpn: vpn,
+        success: success,
+        error: error,
         timestamp: new Date().toISOString()
     });
-    // Keep last 50 entries
     if (history.length > 50) {
         history.pop();
     }
@@ -81,125 +83,158 @@ function saveToHistory(surbhiData, manufacturingData, success, error = '') {
     loadHistory();
 }
 
-// Validate Surbhi Sticker format: VPN$lotcode$datecode$qty
+// Validate Surbhi Sticker format
 function validateSurbhiFormat(data) {
     if (!data || typeof data !== 'string') {
-        return { valid: false, error: 'Surbhi sticker data is empty' };
+        return { valid: false, error: 'Empty' };
     }
     
     const parts = data.split('$');
-    
-    // Must have exactly 4 parts
     if (parts.length !== 4) {
-        return { valid: false, error: 'Surbhi sticker must have format: VPN$lotcode$datecode$qty' };
+        return { valid: false, error: 'Invalid format' };
     }
     
-    // Check each part is not empty
     for (let i = 0; i < parts.length; i++) {
         if (!parts[i] || parts[i].trim() === '') {
-            return { valid: false, error: `Part ${i + 1} is empty in Surbhi sticker` };
+            return { valid: false, error: 'Empty part' };
         }
     }
     
-    return { valid: true, vpn: parts[0], parts };
+    return { valid: true, vpn: parts[0] };
 }
 
-// Validate Manufacturing Sticker format: VPN only
+// Validate Manufacturing Sticker format
 function validateManufacturingFormat(data) {
     if (!data || typeof data !== 'string') {
-        return { valid: false, error: 'Manufacturing sticker data is empty' };
+        return { valid: false, error: 'Empty' };
     }
     
-    // Must not contain $ character (only VPN)
     if (data.includes('$')) {
-        return { valid: false, error: 'Manufacturing sticker must contain only VPN (no $ allowed)' };
+        return { valid: false, error: 'Invalid format' };
     }
     
-    // Must not be empty after trimming
     if (data.trim() === '') {
-        return { valid: false, error: 'Manufacturing sticker VPN is empty' };
+        return { valid: false, error: 'Empty' };
     }
     
     return { valid: true, vpn: data.trim() };
 }
 
-// Extract VPN from data
-function extractVPN(data, type) {
-    if (type === 'surbhi') {
-        const validation = validateSurbhiFormat(data);
-        if (!validation.valid) {
-            return { vpn: null, error: validation.error };
-        }
-        return { vpn: validation.vpn, error: null };
-    } else if (type === 'manufacturing') {
-        const validation = validateManufacturingFormat(data);
-        if (!validation.valid) {
-            return { vpn: null, error: validation.error };
-        }
-        return { vpn: validation.vpn, error: null };
+// Validate Surbhi input in real-time
+function validateSurbhi() {
+    const data = surbhiInput.value.trim();
+    const validation = validateSurbhiFormat(data);
+    
+    if (validation.valid) {
+        surbhiStatus.textContent = '✅ Valid';
+        surbhiStatus.className = 'status valid';
+        manufacturingInput.disabled = false;
+        manufacturingInput.focus();
+    } else {
+        surbhiStatus.textContent = '❌ ' + validation.error;
+        surbhiStatus.className = 'status invalid';
+        manufacturingInput.disabled = true;
+        verifyBtn.disabled = true;
     }
-    return { vpn: null, error: 'Invalid sticker type' };
+    updateVerifyButton();
 }
 
-// Verify if VPNs from both stickers match
-function verifyStickers() {
-    const surbhiData = document.getElementById('surbhiSticker').value.trim();
-    const manufacturingData = document.getElementById('manufacturingSticker').value.trim();
+// Validate Manufacturing input in real-time
+function validateManufacturing() {
+    const data = manufacturingInput.value.trim();
+    const validation = validateManufacturingFormat(data);
     
-    // Validate Surbhi sticker
+    if (validation.valid) {
+        manufacturingStatus.textContent = '✅ Valid';
+        manufacturingStatus.className = 'status valid';
+    } else {
+        manufacturingStatus.textContent = '❌ ' + validation.error;
+        manufacturingStatus.className = 'status invalid';
+    }
+    updateVerifyButton();
+}
+
+// Update verify button state
+function updateVerifyButton() {
+    const surbhiValid = validateSurbhiFormat(surbhiInput.value.trim()).valid;
+    const manufacturingValid = manufacturingInput.value.trim() !== '';
+    verifyBtn.disabled = !(surbhiValid && manufacturingValid);
+}
+
+// Ultra fast verification
+function verifyStickers() {
+    const surbhiData = surbhiInput.value.trim();
+    const manufacturingData = manufacturingInput.value.trim();
+    
     const surbhiValidation = validateSurbhiFormat(surbhiData);
     if (!surbhiValidation.valid) {
-        showResult('error', `❌ Invalid Surbhi Sticker Format: ${surbhiValidation.error}`);
-        saveToHistory(surbhiData, manufacturingData, false, `Invalid Surbhi: ${surbhiValidation.error}`);
+        showResult('error', '❌ FAIL: Invalid Surbhi format');
+        saveToHistory(surbhiData, false, 'Invalid Surbhi format');
         return;
     }
     
-    // Validate Manufacturing sticker
     const manufacturingValidation = validateManufacturingFormat(manufacturingData);
     if (!manufacturingValidation.valid) {
-        showResult('error', `❌ Invalid Manufacturing Sticker Format: ${manufacturingValidation.error}`);
-        saveToHistory(surbhiData, manufacturingData, false, `Invalid Manufacturing: ${manufacturingValidation.error}`);
+        showResult('error', '❌ FAIL: Invalid Manufacturing format');
+        saveToHistory(manufacturingData, false, 'Invalid Manufacturing format');
         return;
     }
     
-    // Extract VPNs
     const surbhiVPN = surbhiValidation.vpn;
     const manufacturingVPN = manufacturingValidation.vpn;
-    
-    // Compare VPNs (case-sensitive as per requirement)
     const isMatch = surbhiVPN === manufacturingVPN;
     
     if (isMatch) {
-        showResult('success', `✅ SUCCESS! VPNs match: ${surbhiVPN}`);
-        saveToHistory(surbhiData, manufacturingData, true);
-        saveRecentScan(surbhiVPN);
+        showResult('success', '✅ PASS: VPNs match!');
+        saveToHistory(surbhiVPN, true);
+        saveRecentScan(surbhiVPN, 'PASS');
     } else {
-        showResult('error', `❌ VPNs do not match!<br>Surbhi VPN: ${surbhiVPN}<br>Manufacturing VPN: ${manufacturingVPN}`);
-        saveToHistory(surbhiData, manufacturingData, false, `VPN mismatch: ${surbhiVPN} vs ${manufacturingVPN}`);
+        showResult('error', `❌ FAIL: VPN mismatch!<br>Surbhi: ${surbhiVPN}<br>Manufacturing: ${manufacturingVPN}`);
+        saveToHistory(surbhiVPN, false, `Mismatch: ${surbhiVPN} vs ${manufacturingVPN}`);
+        saveRecentScan(surbhiVPN, 'FAIL');
     }
+    
+    // Clear inputs for next scan
+    setTimeout(() => {
+        surbhiInput.value = '';
+        manufacturingInput.value = '';
+        surbhiInput.focus();
+        surbhiStatus.textContent = '';
+        manufacturingStatus.textContent = '';
+        manufacturingInput.disabled = true;
+        verifyBtn.disabled = true;
+    }, 1000);
 }
 
-// Show result with animation
+// Show result
 function showResult(type, message) {
     resultDiv.className = `result ${type}`;
     resultDiv.innerHTML = message;
-    
-    // Scroll to result
     resultDiv.scrollIntoView({ behavior: 'smooth' });
 }
 
-// Allow Enter key to trigger verification
+// Handle Enter key
 function handleKeyPress(e) {
     if (e.key === 'Enter') {
-        verifyStickers();
+        if (!surbhiInput.disabled && surbhiInput === document.activeElement) {
+            validateSurbhi();
+            if (validateSurbhiFormat(surbhiInput.value.trim()).valid) {
+                manufacturingInput.focus();
+            }
+        } else if (!manufacturingInput.disabled && manufacturingInput === document.activeElement) {
+            validateManufacturing();
+            if (manufacturingInput.value.trim() !== '') {
+                verifyStickers();
+            }
+        }
     }
 }
 
 // Add event listeners
-document.getElementById('surbhiSticker').addEventListener('keypress', handleKeyPress);
-document.getElementById('manufacturingSticker').addEventListener('keypress', handleKeyPress);
+surbhiInput.addEventListener('keypress', handleKeyPress);
+manufacturingInput.addEventListener('keypress', handleKeyPress);
 
 // Initialize
 loadHistory();
 loadRecentScans();
-showResult('waiting', 'Enter both sticker data and click verify');
+showResult('waiting', 'Scan Surbhi sticker first');
