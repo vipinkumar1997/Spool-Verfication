@@ -2,10 +2,9 @@ services:
   - type: web
     name: spool-verification
     runtime: static
-    build_command: |
-      # Static site - no build required
-      echo "Ultra Fast Spool Verification System"
+    build_command: echo "Ultra Fast Spool Verification System Ready"
     static_publish_path: .
+    start_command: echo "Spool Verification System is running"
     env_vars:
       - key: NODE_ENV
         value: production
