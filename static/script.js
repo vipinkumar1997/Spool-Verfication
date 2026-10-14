@@ -11,7 +11,7 @@ const resultDiv = document.getElementById('result');
 const recentScansDiv = document.getElementById('recentScans');
 const historyList = document.getElementById('historyList');
 
-// Stats
+// Stats - will be loaded from server
 let totalScans = 0;
 let passCount = 0;
 let failCount = 0;
@@ -109,6 +109,21 @@ async function safeApiCall(url, options = {}, timeout = 3000) {
     }
 }
 
+// Load stats from server
+async function loadStats() {
+    try {
+        const stats = await safeApiCall('/api/stats', {}, 2000);
+        if (stats) {
+            totalScans = stats.total_scans || 0;
+            passCount = stats.pass_count || 0;
+            failCount = stats.fail_count || 0;
+            updateStats();
+        }
+    } catch (error) {
+        console.error('Error loading stats:', error);
+    }
+}
+
 // Handle Surbhi input
 function handleSurbhiInput() {
     const data = surbhiInput.value.trim();
@@ -203,17 +218,19 @@ async function verifyStickers() {
             })
         }, 5000);
         
-        // Update stats
-        totalScans++;
-        if (result.success) {
-            passCount++;
-            showResult('success', '✅ PASS');
-        } else {
-            failCount++;
-            showResult('error', result.message || '❌ FAIL');
+        // Update local stats from server response
+        if (result.total_scans !== undefined) {
+            totalScans = result.total_scans || 0;
+            passCount = result.pass_count || 0;
+            failCount = result.fail_count || 0;
+            updateStats();
         }
         
-        updateStats();
+        if (result.success) {
+            showResult('success', '✅ PASS');
+        } else {
+            showResult('error', result.message || '❌ FAIL');
+        }
         
         // Load updated data in background (don't wait)
         loadRecentScans();
@@ -319,11 +336,13 @@ function updateStats() {
 // Clear all data
 function clearAll() {
     if (confirm('Clear all data?')) {
+        // Clear local counters
         totalScans = 0;
         passCount = 0;
         failCount = 0;
         updateStats();
         
+        // Clear inputs
         surbhiInput.value = '';
         manufacturingInput.value = '';
         surbhiStatus.textContent = '';
@@ -333,12 +352,14 @@ function clearAll() {
         verifyBtn.innerHTML = '<span class="btn-icon">⚡</span> Verify';
         currentField = 'surbhi';
         
+        // Clear display
         recentScansDiv.innerHTML = `
             <div class="empty-state">
                 <span class="empty-icon">📭</span>
                 <p>No scans yet</p>
             </div>
         `;
+        historyList.innerHTML = '';
         
         showResult('waiting', 'Scan Surbhi first');
     }
@@ -351,6 +372,7 @@ manufacturingInput.addEventListener('keydown', (e) => handleKeyDown(e, 'manufact
 manufacturingInput.addEventListener('input', debounce(handleManufacturingInput, 100));
 
 // Initialize
+loadStats();
 loadRecentScans();
 loadHistory();
 showResult('waiting', 'Scan Surbhi first');

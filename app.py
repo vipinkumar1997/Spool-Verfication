@@ -1,7 +1,6 @@
 from flask import Flask, render_template, request, jsonify, session
 from datetime import datetime
 import os
-import re
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'spool-verification-secret-key-2024')
@@ -13,6 +12,12 @@ def init_storage():
         session['recent_scans'] = []
     if 'history' not in session:
         session['history'] = []
+    if 'total_scans' not in session:
+        session['total_scans'] = 0
+    if 'pass_count' not in session:
+        session['pass_count'] = 0
+    if 'fail_count' not in session:
+        session['fail_count'] = 0
 
 
 def validate_surbhi_format(data):
@@ -20,7 +25,6 @@ def validate_surbhi_format(data):
     if not data or not isinstance(data, str):
         return {'valid': False, 'error': 'Surbhi sticker data is empty'}
     
-    # Remove any extra whitespace
     data = data.strip()
     
     parts = data.split('$')
@@ -31,7 +35,6 @@ def validate_surbhi_format(data):
         if not part or part.strip() == '':
             return {'valid': False, 'error': f'Part {i+1} is empty in Surbhi sticker'}
     
-    # Extract VPN (first part)
     vpn = parts[0].strip()
     
     return {'valid': True, 'vpn': vpn, 'parts': parts}
@@ -63,7 +66,11 @@ def before_request():
 def index():
     """Main verification page"""
     init_storage()
-    return render_template('index.html', recent_scans=session.get('recent_scans', [])[:5])
+    return render_template('index.html', 
+                         recent_scans=session.get('recent_scans', [])[:5],
+                         total_scans=session.get('total_scans', 0),
+                         pass_count=session.get('pass_count', 0),
+                         fail_count=session.get('fail_count', 0))
 
 
 @app.route('/api/verify', methods=['POST'])
@@ -93,6 +100,11 @@ def verify():
                 'message': f'Invalid Surbhi Sticker: {surbhi_validation["error"]}',
                 'result': 'FAIL'
             }
+            # Update fail count
+            session['fail_count'] = session.get('fail_count', 0) + 1
+            session['total_scans'] = session.get('total_scans', 0) + 1
+            session.modified = True
+            
             # Save to history
             session['history'] = session.get('history', [])[:50]
             session['history'].insert(0, {
@@ -114,6 +126,11 @@ def verify():
                 'message': f'Invalid Manufacturing Sticker: {manufacturing_validation["error"]}',
                 'result': 'FAIL'
             }
+            # Update fail count
+            session['fail_count'] = session.get('fail_count', 0) + 1
+            session['total_scans'] = session.get('total_scans', 0) + 1
+            session.modified = True
+            
             # Save to history
             session['history'] = session.get('history', [])[:50]
             session['history'].insert(0, {
@@ -135,7 +152,15 @@ def verify():
         result_message = 'PASS: VPNs match!' if is_match else f'FAIL: VPN mismatch! Surbhi: {surbhi_vpn}, Manufacturing: {manufacturing_vpn}'
         result_type = 'PASS' if is_match else 'FAIL'
         
-        # Save to recent scans (last 5) - only save the VPN, not the full data
+        # Update stats in session
+        session['total_scans'] = session.get('total_scans', 0) + 1
+        if is_match:
+            session['pass_count'] = session.get('pass_count', 0) + 1
+        else:
+            session['fail_count'] = session.get('fail_count', 0) + 1
+        session.modified = True
+        
+        # Save to recent scans (last 5)
         session['recent_scans'] = session.get('recent_scans', [])[:5]
         session['recent_scans'].insert(0, {
             'vpn': surbhi_vpn,
@@ -144,7 +169,7 @@ def verify():
         })
         session.modified = True
         
-        # Save to history - store only VPN, not full data
+        # Save to history
         session['history'] = session.get('history', [])[:50]
         session['history'].insert(0, {
             'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
@@ -159,7 +184,10 @@ def verify():
             'message': result_message,
             'result': result_type,
             'vpn': surbhi_vpn,
-            'recent_scans': session.get('recent_scans', [])[:5]
+            'recent_scans': session.get('recent_scans', [])[:5],
+            'total_scans': session.get('total_scans', 0),
+            'pass_count': session.get('pass_count', 0),
+            'fail_count': session.get('fail_count', 0)
         })
     
     except Exception as e:
@@ -187,6 +215,20 @@ def get_history():
     init_storage()
     try:
         return jsonify(session.get('history', [])[:50])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/stats')
+def get_stats():
+    """Get current stats - Always returns JSON"""
+    init_storage()
+    try:
+        return jsonify({
+            'total_scans': session.get('total_scans', 0),
+            'pass_count': session.get('pass_count', 0),
+            'fail_count': session.get('fail_count', 0)
+        })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
