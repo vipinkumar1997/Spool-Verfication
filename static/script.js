@@ -1,6 +1,6 @@
 // Spool Verification System — Zebra scanner friendly.
 // Surbhi sticker: VPN$lotcode$datecode$qty   |   Manufacturing sticker: VPN
-// All state is server-side (SQLite); this file only renders API responses.
+// All state is live in-memory on the server (no database); this file only renders API responses.
 
 (() => {
   "use strict";
