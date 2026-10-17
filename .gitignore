@@ -43,3 +43,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# SQLite database
+instance/*.sqlite3*

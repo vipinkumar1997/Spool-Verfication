@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>⚡ Spool Verification</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -15,7 +16,7 @@
                 <span class="logo-icon">⚡</span>
                 <h1>Spool Verification</h1>
             </div>
-            <button class="btn btn-secondary" onclick="clearAll()">Clear</button>
+            <button id="clearBtn" class="btn btn-secondary" type="button">Clear</button>
         </header>
 
         <!-- Main Content -->
@@ -38,15 +39,13 @@
                             </div>
                         </div>
                         <div class="input-wrapper">
-                            <input 
-                                type="text" 
-                                id="surbhiSticker" 
+                            <input
+                                type="text"
+                                id="surbhiSticker"
                                 class="input-field scanner-active"
                                 placeholder="VPN123$LOT456$20241014$100"
                                 autocomplete="off"
-                                oninput="handleSurbhiInput()"
-                                onkeydown="handleKeyDown(event, 'surbhi')"
-                                onchange="handleSurbhiInput()"
+                                spellcheck="false"
                             >
                             <span id="surbhiStatus" class="input-status"></span>
                         </div>
@@ -65,16 +64,14 @@
                             </div>
                         </div>
                         <div class="input-wrapper">
-                            <input 
-                                type="text" 
-                                id="manufacturingSticker" 
+                            <input
+                                type="text"
+                                id="manufacturingSticker"
                                 class="input-field"
                                 placeholder="VPN123"
                                 autocomplete="off"
+                                spellcheck="false"
                                 disabled
-                                oninput="handleManufacturingInput()"
-                                onkeydown="handleKeyDown(event, 'manufacturing')"
-                                onchange="handleManufacturingInput()"
                             >
                             <span id="manufacturingStatus" class="input-status"></span>
                         </div>
@@ -82,12 +79,7 @@
                 </div>
 
                 <!-- Verify Button -->
-                <button 
-                    id="verifyBtn" 
-                    class="btn btn-primary btn-verify" 
-                    onclick="verifyStickers()"
-                    disabled
-                >
+                <button id="verifyBtn" class="btn btn-primary btn-verify" type="button" disabled>
                     <span class="btn-icon">⚡</span>
                     Verify
                 </button>
@@ -106,25 +98,20 @@
                     <span class="badge">Last 5</span>
                 </div>
                 <div id="recentScans" class="scans-list">
-                    {% if recent_scans %}
-                        {% for scan in recent_scans %}
-                        <div class="scan-item">
-                            <div class="scan-info">
-                                <span class="scan-vpn">{{ scan.vpn }}</span>
-                                <span class="scan-time">{{ scan.timestamp }}</span>
-                            </div>
-                            <span class="scan-result {{ scan.result }}">
-                                {{ '✅' if scan.result == 'PASS' else '❌' }}
-                            </span>
-                        </div>
-                        {% endfor %}
-                    {% else %}
                     <div class="empty-state">
                         <span class="empty-icon">📭</span>
                         <p>No scans yet</p>
                     </div>
-                    {% endif %}
                 </div>
+            </div>
+
+            <!-- Full History (was referenced by JS but missing in the old markup) -->
+            <div class="scans-card">
+                <div class="card-header">
+                    <h2>📜 History</h2>
+                    <span class="badge">Last 50</span>
+                </div>
+                <ul id="historyList" class="scans-list"></ul>
             </div>
         </main>
 
