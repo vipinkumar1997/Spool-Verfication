@@ -1,13 +1,25 @@
+# Render.com deployment configuration (Blueprint).
+# Docs: https://render.com/docs/blueprint-spec
+#
+# One-click deploy of the Flask web service. NO database is provisioned —
+# by design, this app keeps only live session data in process memory
+# (app/store.py). Scan stats/history reset on restart or redeploy.
+#
+# NOTE: keep exactly ONE gunicorn worker. In-memory state lives per-process,
+# so multiple workers would each hold a separate copy of the stats/history.
+#
+# Push this repo to GitHub -> Render dashboard -> New -> Blueprint -> pick repo.
+
 services:
   - type: web
     name: spool-verification
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 2 wsgi:app
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 1 wsgi:app
     healthCheckPath: /
     envVars:
       - key: SECRET_KEY
-        generateValue: true   # Render automatically generates a secure random value
+        generateValue: true            # Render generates a secure random value
       - key: PYTHON_VERSION
         value: "3.12"

@@ -1,10 +1,11 @@
 """HTTP API for spool verification.
 
-Design notes (vs. the old implementation):
-    * All state lives in SQLite, not in signed session cookies — data survives
-      refreshes and is shared across clients of the same deployment.
-    * One ``_fail`` helper records every failed scan exactly once; the old code
-      duplicated fail-handling in three places.
+Design notes:
+    * All state lives in the live in-memory store (app.store.ScanStore) —
+      no database by design. Data represents the current session and resets
+      on restart/redeploy.
+    * Every failed scan is recorded exactly once through one uniform path;
+      the old code duplicated fail-handling in three places.
     * Error responses never echo internal exception strings to the client;
       details go to the app logger instead.
 """
@@ -13,10 +14,14 @@ from __future__ import annotations
 
 from flask import Blueprint, current_app, jsonify, request
 
-from . import db
 from .validation import validate_manufacturing, validate_surbhi
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
+
+
+def _store():
+    """The live in-memory scan store."""
+    return current_app.config["STORE"]
 
 MAX_INPUT_LEN = 512
 
@@ -39,7 +44,7 @@ def verify():
     """Verify Surbhi vs Manufacturing VPNs and persist the outcome."""
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict):
-        db.record_scan(vpn=None, surbhi="", manufacturing="", passed=False, error="empty_request")
+        _store().record_scan(vpn=None, surbhi="", manufacturing="", passed=False, error="empty_request")
         return _bad_request("No valid JSON data received", "empty_request")
 
     surbhi, err = _get_sticker_string(payload, "surbhi")
@@ -56,14 +61,14 @@ def verify():
     if not s_val.valid or not m_val.valid:
         which = "Surbhi" if not s_val.valid else "Manufacturing"
         reason = s_val.error if not s_val.valid else m_val.error
-        db.record_scan(
+        _store().record_scan(
             vpn=s_val.vpn if s_val.valid else None,
             surbhi=surbhi,
             manufacturing=manufacturing,
             passed=False,
             error=reason,
         )
-        stats = db.get_stats()
+        stats = _store().get_stats()
         return jsonify(
             {
                 "success": False,
@@ -75,14 +80,14 @@ def verify():
         ), 400
 
     is_match = s_val.vpn == m_val.vpn
-    db.record_scan(
+    _store().record_scan(
         vpn=s_val.vpn,
         surbhi=surbhi,
         manufacturing=manufacturing,
         passed=is_match,
         error=None if is_match else "vpn_mismatch",
     )
-    stats = db.get_stats()
+    stats = _store().get_stats()
 
     if is_match:
         message = "PASS: VPNs match!"
@@ -104,28 +109,28 @@ def verify():
 
 @api_bp.get("/recent-scans")
 def recent_scans():
-    limit = request.args.get("limit", default=db.MAX_RECENT, type=int)
-    limit = max(1, min(limit, db.MAX_RECENT))
-    return jsonify(db.get_recent_scans(limit))
+    limit = request.args.get("limit", default=_store().MAX_RECENT, type=int)
+    limit = max(1, min(limit, _store().MAX_RECENT))
+    return jsonify(_store().get_recent_scans(limit))
 
 
 @api_bp.get("/history")
 def history():
-    limit = request.args.get("limit", default=db.MAX_HISTORY, type=int)
-    limit = max(1, min(limit, db.MAX_HISTORY))
-    return jsonify(db.get_history(limit))
+    limit = request.args.get("limit", default=_store().MAX_HISTORY, type=int)
+    limit = max(1, min(limit, _store().MAX_HISTORY))
+    return jsonify(_store().get_history(limit))
 
 
 @api_bp.get("/stats")
 def stats():
-    return jsonify(db.get_stats())
+    return jsonify(_store().get_stats())
 
 
 @api_bp.post("/clear")
 def clear():
-    removed = db.clear_all()
+    removed = _store().clear_all()
     current_app.logger.info("All scans cleared (%d rows removed)", removed)
-    return jsonify({"success": True, "removed": removed, **db.get_stats()})
+    return jsonify({"success": True, "removed": removed, **_store().get_stats()})
 
 
 @api_bp.errorhandler(Exception)
